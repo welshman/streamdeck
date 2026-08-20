@@ -1,5 +1,4 @@
-/// <reference types="vitest/config" />
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import { fileURLToPath, URL } from 'node:url'
 
@@ -9,6 +8,10 @@ import { fileURLToPath, URL } from 'node:url'
 // See .github/workflows/deploy.yml for how VITE_BASE_PATH is set.
 const base = process.env.VITE_BASE_PATH ?? '/'
 
+// Using vitest/config's defineConfig (instead of plain vite's) gives the
+// `test` field below a proper type out of the box, so no ambient
+// "/// <reference types="vitest/config" />" merge is needed and `tsc -b`
+// type-checks this file correctly under tsconfig.node.json.
 export default defineConfig({
   base,
   plugins: [react()],
