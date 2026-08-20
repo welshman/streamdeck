@@ -6,6 +6,8 @@ All data (saved streams, layout, theme, chat visibility, card collapse state, et
 
 > The "StreamDeck" name and logo are placeholders — rename freely in `index.html`, `Navbar.tsx`, and `package.json`.
 
+Demo: https://welshman.github.io/streamdeck/
+
 ## Features
 
 - Add streams by pasting a full URL or a bare channel name (Twitch/Kick) or video ID (YouTube).
