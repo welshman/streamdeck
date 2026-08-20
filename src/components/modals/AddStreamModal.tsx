@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { AlertCircle, Plus, Sparkles } from 'lucide-react'
+import { AlertCircle, Plus, Sparkles, Search, Info } from 'lucide-react'
 import { Modal } from '@/components/ui/Modal'
 import { Platform, RecentStream } from '@/types/stream'
 import { splitMultipleInputs } from '@/utils/streamParser'
@@ -25,8 +25,21 @@ export function AddStreamModal({ isOpen, onClose, onAdd, recents, onAddFromRecen
   const [hint, setHint] = useState<Platform | null>(null)
   const [errors, setErrors] = useState<string[]>([])
   const [addedCount, setAddedCount] = useState(0)
+  const [recentQuery, setRecentQuery] = useState('')
 
   const candidateLines = useMemo(() => splitMultipleInputs(value), [value])
+
+  // StreamDeck has no backend, so there is no way to search Twitch, Kick,
+  // or YouTube for live channels by name. This filters the user's own
+  // locally-saved "recently used" streams instead, which is the closest
+  // equivalent of a search that a fully static, key-less app can offer.
+  const filteredRecents = useMemo(() => {
+    const q = recentQuery.trim().toLowerCase()
+    if (!q) return recents
+    return recents.filter(
+      (r) => r.label.toLowerCase().includes(q) || r.channelOrId.toLowerCase().includes(q),
+    )
+  }, [recents, recentQuery])
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -135,25 +148,53 @@ export function AddStreamModal({ isOpen, onClose, onAdd, recents, onAddFromRecen
 
         {recents.length > 0 && (
           <div className="border-t border-border pt-3">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">
-              Quick add from recent
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {recents.slice(0, 6).map((r) => (
-                <button
-                  key={`${r.platform}-${r.channelOrId}`}
-                  type="button"
-                  onClick={() => {
-                    onAddFromRecent(r)
-                    onClose()
-                  }}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs text-text hover:bg-surface"
-                >
-                  <PlatformBadge platform={r.platform} className="px-1.5 py-0 text-[10px]" />
-                  {r.label}
-                </button>
-              ))}
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+                Search recently used streams
+              </p>
+              <span className="group relative inline-flex">
+                <Info className="h-3.5 w-3.5 text-text-muted" aria-hidden="true" />
+                <span className="pointer-events-none absolute bottom-full right-0 z-50 mb-1.5 w-56 rounded-md bg-black/90 px-2 py-1.5 text-[11px] leading-snug text-white opacity-0 shadow-card transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                  StreamDeck has no backend, so it can&apos;t search Twitch, Kick, or YouTube for
+                  live channels. This searches only the streams you&apos;ve previously added,
+                  saved locally in this browser.
+                </span>
+              </span>
             </div>
+            <div className="relative mb-2">
+              <Search
+                className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-muted"
+                aria-hidden="true"
+              />
+              <input
+                type="text"
+                value={recentQuery}
+                onChange={(e) => setRecentQuery(e.target.value)}
+                placeholder="Filter by channel name…"
+                aria-label="Search recently used streams"
+                className="w-full rounded-full border border-border bg-surface py-1.5 pl-8 pr-3 text-xs text-text placeholder:text-text-muted focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+              />
+            </div>
+            {filteredRecents.length === 0 ? (
+              <p className="text-xs text-text-muted">No recently used streams match &quot;{recentQuery}&quot;.</p>
+            ) : (
+              <div className="flex max-h-40 flex-wrap gap-1.5 overflow-y-auto">
+                {filteredRecents.map((r) => (
+                  <button
+                    key={`${r.platform}-${r.channelOrId}`}
+                    type="button"
+                    onClick={() => {
+                      onAddFromRecent(r)
+                      onClose()
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs text-text hover:bg-surface"
+                  >
+                    <PlatformBadge platform={r.platform} className="px-1.5 py-0 text-[10px]" />
+                    {r.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </form>
