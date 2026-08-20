@@ -1,6 +1,7 @@
-import { defineConfig } from 'vitest/config'
+import { defineConfig, type UserConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { fileURLToPath, URL } from 'node:url'
+import type { InlineConfig } from 'vitest/node'
 
 // GitHub Pages serves project sites from /<repo-name>/, so the Vite base
 // must match the repository name. We read it from an env var so the same
@@ -8,11 +9,17 @@ import { fileURLToPath, URL } from 'node:url'
 // See .github/workflows/deploy.yml for how VITE_BASE_PATH is set.
 const base = process.env.VITE_BASE_PATH ?? '/'
 
-// Using vitest/config's defineConfig (instead of plain vite's) gives the
-// `test` field below a proper type out of the box, so no ambient
-// "/// <reference types="vitest/config" />" merge is needed and `tsc -b`
-// type-checks this file correctly under tsconfig.node.json.
-export default defineConfig({
+// We intentionally import `defineConfig` from plain "vite" (not
+// "vitest/config") to avoid a TypeScript error caused by vitest bundling
+// its own nested copy of vite: importing defineConfig from vitest/config
+// resolves Plugin/PluginOption types against that nested vite copy, which
+// then structurally conflicts with @vitejs/plugin-react's top-level-vite
+// Plugin type. Importing only vitest's `InlineConfig` *type* (not its
+// defineConfig) avoids pulling in that nested-vite type graph while still
+// giving the `test` field below full type-checking.
+type ViteConfigWithTest = UserConfig & { test?: InlineConfig }
+
+const config: ViteConfigWithTest = {
   base,
   plugins: [react()],
   resolve: {
@@ -33,4 +40,6 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
   },
-})
+}
+
+export default defineConfig(config)
