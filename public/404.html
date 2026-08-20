@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>StreamDeck</title>
+    <script>
+      // GitHub Pages SPA fallback: redirect deep links back to the app's
+      // root with the original path preserved as a query param, since
+      // StreamDeck itself does not use path-based routing.
+      var basePath = '/__BASE_PATH__/';
+      var target = basePath + '?redirect=' + encodeURIComponent(location.pathname + location.search + location.hash);
+      location.replace(target);
+    </script>
+  </head>
+  <body>
+    <p>Redirecting to StreamDeck…</p>
+  </body>
+</html>
