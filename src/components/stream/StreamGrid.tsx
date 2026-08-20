@@ -117,31 +117,23 @@ export function StreamGrid({
     const featured = streams.find((s) => s.id === featuredStreamId) ?? streams[0]
     const secondary = streams.filter((s) => s.id !== featured?.id)
 
-    // Both "featured" and "pip" now share the same core idea: the featured
-    // stream dominates the viewport (roughly 3/4 of the visible height) on
-    // every screen size, with the remaining streams demoted to a compact,
-    // horizontally-scrollable strip underneath. "pip" additionally overlays
-    // that strip near the bottom-right corner of the featured player for a
-    // picture-in-picture feel; "featured" keeps it as a normal row below.
     if (layout === 'pip') {
       return (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <div className="relative flex flex-col gap-3">
+          <div className="relative min-h-[60vh] rounded-2xl bg-black/10">
             {featured && (
-              <div className="h-[calc(100vh-11rem)] min-h-[420px] w-full">
+              <div className="h-[70vh] max-h-[800px] w-full">
                 <StreamCard {...cardProps(featured)} />
               </div>
             )}
             {secondary.length > 0 && (
               <SortableContext items={secondary.map((s) => s.id)} strategy={rectSortingStrategy}>
-                <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-end px-3">
-                  <div className="pointer-events-auto flex max-w-full gap-2 overflow-x-auto rounded-xl bg-black/40 p-2 backdrop-blur-sm">
-                    {secondary.map((s) => (
-                      <div key={s.id} className="h-24 w-40 shrink-0 sm:h-28 sm:w-48">
-                        <StreamCard {...cardProps(s)} />
-                      </div>
-                    ))}
-                  </div>
+                <div className="mt-3 flex flex-wrap gap-3 sm:absolute sm:bottom-3 sm:right-3 sm:mt-0 sm:w-72">
+                  {secondary.map((s) => (
+                    <div key={s.id} className="w-full sm:w-64">
+                      <StreamCard {...cardProps(s)} />
+                    </div>
+                  ))}
                 </div>
               </SortableContext>
             )}
@@ -152,19 +144,17 @@ export function StreamGrid({
 
     return (
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <div className="flex flex-col gap-3">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2.2fr)_minmax(280px,1fr)]">
           {featured && (
-            <div className="h-[calc(100vh-13rem)] min-h-[420px] w-full">
+            <div className="min-h-[40vh]">
               <StreamCard {...cardProps(featured)} />
             </div>
           )}
           {secondary.length > 0 && (
             <SortableContext items={secondary.map((s) => s.id)} strategy={rectSortingStrategy}>
-              <div className="flex gap-3 overflow-x-auto pb-1">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-1">
                 {secondary.map((s) => (
-                  <div key={s.id} className="h-28 w-48 shrink-0 sm:h-32 sm:w-56">
-                    <StreamCard {...cardProps(s)} />
-                  </div>
+                  <StreamCard key={s.id} {...cardProps(s)} />
                 ))}
               </div>
             </SortableContext>
