@@ -108,6 +108,7 @@ export function useDashboardStore() {
           isMuted: true,
           showChat: false,
           chatPosition: 'side',
+          controlsCollapsed: false,
           order: maxOrder + 1,
           addedAt: Date.now(),
         }
@@ -178,6 +179,12 @@ export function useDashboardStore() {
 
   const updateAccentColor = useCallback((id: string, color: string | undefined) => {
     setStreams((prev) => prev.map((s) => (s.id === id ? { ...s, accentColor: color } : s)))
+  }, [])
+
+  const toggleControlsCollapsed = useCallback((id: string) => {
+    setStreams((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, controlsCollapsed: !s.controlsCollapsed } : s)),
+    )
   }, [])
 
   const setFeatured = useCallback((id: string | null) => {
@@ -287,6 +294,7 @@ export function useDashboardStore() {
     updateNote,
     updateLabel,
     updateAccentColor,
+    toggleControlsCollapsed,
     setFeatured,
     setLayout,
     setTheme,

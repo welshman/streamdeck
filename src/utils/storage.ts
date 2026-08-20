@@ -43,12 +43,42 @@ function emptyState(): PersistedState {
   }
 }
 
+/** Fills in fields that may be missing from streams persisted by an
+ * older version of the app, so new optional/required fields never crash
+ * the UI when reading old localStorage data or imported JSON files. */
+function normalizeStream(raw: unknown): StreamEntry | null {
+  if (!raw || typeof raw !== 'object') return null
+  const s = raw as Partial<StreamEntry>
+  if (!s.id || !s.platform || !s.channelOrId || !s.originalUrl) return null
+  return {
+    id: s.id,
+    platform: s.platform,
+    channelOrId: s.channelOrId,
+    originalUrl: s.originalUrl,
+    label: s.label ?? s.channelOrId,
+    note: s.note,
+    accentColor: s.accentColor,
+    isHidden: s.isHidden ?? false,
+    isFavorite: s.isFavorite ?? false,
+    isMuted: s.isMuted ?? true,
+    showChat: s.showChat ?? false,
+    chatPosition: s.chatPosition ?? 'side',
+    controlsCollapsed: s.controlsCollapsed ?? false,
+    order: s.order ?? 0,
+    addedAt: s.addedAt ?? Date.now(),
+    lastViewedAt: s.lastViewedAt,
+  }
+}
+
 function migrate(raw: unknown): PersistedState {
   if (!raw || typeof raw !== 'object') return emptyState()
   const obj = raw as Partial<PersistedState>
+  const streams = Array.isArray(obj.streams)
+    ? obj.streams.map(normalizeStream).filter((s): s is StreamEntry => s !== null)
+    : []
   return {
     version: CURRENT_STATE_VERSION,
-    streams: Array.isArray(obj.streams) ? (obj.streams as StreamEntry[]) : [],
+    streams,
     settings: { ...DEFAULT_SETTINGS, ...(obj.settings ?? {}) },
     recents: Array.isArray(obj.recents) ? (obj.recents as RecentStream[]) : [],
   }
