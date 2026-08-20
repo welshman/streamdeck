@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --surface: 255 255 255;
+  --surface-raised: 248 249 251;
+  --surface-sunken: 237 239 243;
+  --border: 226 229 235;
+  --accent: 109 74 255;
+  --accent-hover: 91 56 237;
+  --text: 17 19 24;
+  --text-muted: 100 106 119;
+}
+
+.dark {
+  --surface: 11 13 18;
+  --surface-raised: 19 22 30;
+  --surface-sunken: 26 30 40;
+  --border: 40 45 58;
+  --accent: 124 92 252;
+  --accent-hover: 145 118 255;
+  --text: 237 239 244;
+  --text-muted: 148 153 165;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-surface text-text antialiased;
+  font-feature-settings: 'cv11', 'ss01';
+}
+
+* {
+  scrollbar-color: rgb(var(--border)) transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
