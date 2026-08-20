@@ -25,10 +25,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        # No package-lock.json is committed, so `npm ci` (which requires one)
+        # is not used here. Run `npm install` locally at least once and
+        # commit the generated package-lock.json to switch to `npm ci` for
+        # fully reproducible, cacheable installs.
+        run: npm install
 
       - name: Run lint
         run: npm run lint
