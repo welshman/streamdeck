@@ -42,6 +42,9 @@ export interface StreamEntry {
   isMuted: boolean
   showChat: boolean
   chatPosition: ChatPosition
+  /** When true, the card's control toolbar is shrunk down to just the
+   * drag handle, platform badge, and an expand button. */
+  controlsCollapsed: boolean
   /** Sort position within the active (non-hidden) list. */
   order: number
   addedAt: number
