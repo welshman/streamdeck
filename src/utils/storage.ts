@@ -45,7 +45,10 @@ function emptyState(): PersistedState {
 
 /** Fills in fields that may be missing from streams persisted by an
  * older version of the app, so new optional/required fields never crash
- * the UI when reading old localStorage data or imported JSON files. */
+ * the UI when reading old localStorage data or imported JSON files.
+ * `controlsCollapsed` defaults to true (collapsed) so streams saved
+ * before this field existed start in the same compact state as newly
+ * added streams, rather than reverting to the older expanded look. */
 function normalizeStream(raw: unknown): StreamEntry | null {
   if (!raw || typeof raw !== 'object') return null
   const s = raw as Partial<StreamEntry>
@@ -63,7 +66,7 @@ function normalizeStream(raw: unknown): StreamEntry | null {
     isMuted: s.isMuted ?? true,
     showChat: s.showChat ?? false,
     chatPosition: s.chatPosition ?? 'side',
-    controlsCollapsed: s.controlsCollapsed ?? false,
+    controlsCollapsed: s.controlsCollapsed ?? true,
     order: s.order ?? 0,
     addedAt: s.addedAt ?? Date.now(),
     lastViewedAt: s.lastViewedAt,

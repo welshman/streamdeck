@@ -108,7 +108,7 @@ export function useDashboardStore() {
           isMuted: true,
           showChat: false,
           chatPosition: 'side',
-          controlsCollapsed: false,
+          controlsCollapsed: true,
           order: maxOrder + 1,
           addedAt: Date.now(),
         }
