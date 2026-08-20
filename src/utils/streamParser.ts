@@ -17,6 +17,12 @@ const YOUTUBE_HOSTS = [
 
 const CHANNEL_NAME_RE = /^[a-zA-Z0-9_]{2,25}$/
 const YOUTUBE_ID_RE = /^[a-zA-Z0-9_-]{10,12}$/
+// A real YouTube video ID is a base64url-style token: it virtually always
+// mixes case and/or contains '-'/'_'. A bare, all-lowercase-or-all-digit
+// 11-char string (e.g. "somechannel") is far more likely to be a Twitch/Kick
+// channel name that happens to be 11 characters long, so we only treat a
+// bare 11-char string as a YouTube ID when it "looks like" one.
+const LOOKS_LIKE_YOUTUBE_ID_RE = /^(?=[a-zA-Z0-9_-]{11}$)(?:.*[A-Z].*|.*[-_].*)$/
 
 function tryParseUrl(input: string): URL | null {
   try {
@@ -149,7 +155,12 @@ export function parseStreamInput(raw: string): ParsedStreamInput {
     )
   }
 
-  if (YOUTUBE_ID_RE.test(trimmed) && trimmed.length === 11) {
+  // Only treat a bare string as a YouTube ID when it is exactly 11
+  // characters AND actually looks like a YouTube ID (mixed case or
+  // contains '-'/'_'). Otherwise an 11-character, all-lowercase word like
+  // "somechannel" would be silently (and usually wrongly) treated as a
+  // YouTube video ID instead of a Twitch/Kick channel name.
+  if (LOOKS_LIKE_YOUTUBE_ID_RE.test(trimmed)) {
     return {
       platform: 'youtube',
       channelOrId: trimmed,
