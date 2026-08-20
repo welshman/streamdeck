@@ -29,6 +29,7 @@ interface StreamGridProps {
   onToggleMute: (id: string) => void
   onToggleChat: (id: string) => void
   onUpdateLabel: (id: string, label: string) => void
+  onToggleControlsCollapsed: (id: string) => void
 }
 
 const GRID_CLASSES: Record<LayoutMode, string> = {
@@ -54,6 +55,7 @@ export function StreamGrid({
   onToggleMute,
   onToggleChat,
   onUpdateLabel,
+  onToggleControlsCollapsed,
 }: StreamGridProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -84,6 +86,7 @@ export function StreamGrid({
     onToggleMute,
     onToggleChat,
     onUpdateLabel,
+    onToggleControlsCollapsed,
   })
 
   if (layout === 'focus') {

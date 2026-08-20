@@ -226,6 +226,7 @@ function App() {
                 onToggleMute={store.toggleMute}
                 onToggleChat={store.toggleChat}
                 onUpdateLabel={store.updateLabel}
+                onToggleControlsCollapsed={store.toggleControlsCollapsed}
               />
             )}
           </main>
