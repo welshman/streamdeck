@@ -16,6 +16,8 @@ import {
   PanelRightOpen,
   Keyboard,
   VolumeX,
+  ChevronsRight,
+  ChevronsLeft,
 } from 'lucide-react'
 import { LayoutMode, ThemeMode } from '@/types/stream'
 import { IconButton } from '@/components/ui/IconButton'
@@ -33,6 +35,8 @@ interface NavbarProps {
   onOpenSettings: () => void
   onOpenShortcuts: () => void
   onMuteAll: () => void
+  onToggleAllControlsCollapsed: () => void
+  allControlsCollapsed: boolean
   streamCount: number
 }
 
@@ -63,6 +67,8 @@ export function Navbar({
   onOpenSettings,
   onOpenShortcuts,
   onMuteAll,
+  onToggleAllControlsCollapsed,
+  allControlsCollapsed,
   streamCount,
 }: NavbarProps) {
   const [layoutMenuOpen, setLayoutMenuOpen] = useState(false)
@@ -131,6 +137,21 @@ export function Navbar({
         <Tooltip content="Mute all streams">
           <IconButton label="Mute all streams" onClick={onMuteAll} disabled={streamCount === 0}>
             <VolumeX className="h-[18px] w-[18px]" aria-hidden="true" />
+          </IconButton>
+        </Tooltip>
+
+        <Tooltip content={allControlsCollapsed ? 'Expand all card controls' : 'Collapse all card controls'}>
+          <IconButton
+            label={allControlsCollapsed ? 'Expand all card controls' : 'Collapse all card controls'}
+            onClick={onToggleAllControlsCollapsed}
+            disabled={streamCount === 0}
+            active={allControlsCollapsed}
+          >
+            {allControlsCollapsed ? (
+              <ChevronsLeft className="h-[18px] w-[18px]" aria-hidden="true" />
+            ) : (
+              <ChevronsRight className="h-[18px] w-[18px]" aria-hidden="true" />
+            )}
           </IconButton>
         </Tooltip>
 

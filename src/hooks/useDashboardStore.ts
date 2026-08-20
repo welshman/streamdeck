@@ -187,6 +187,10 @@ export function useDashboardStore() {
     )
   }, [])
 
+  const setAllControlsCollapsed = useCallback((collapsed: boolean) => {
+    setStreams((prev) => prev.map((s) => ({ ...s, controlsCollapsed: collapsed })))
+  }, [])
+
   const setFeatured = useCallback((id: string | null) => {
     setSettings((prev) => ({ ...prev, featuredStreamId: id }))
   }, [])
@@ -295,6 +299,7 @@ export function useDashboardStore() {
     updateLabel,
     updateAccentColor,
     toggleControlsCollapsed,
+    setAllControlsCollapsed,
     setFeatured,
     setLayout,
     setTheme,

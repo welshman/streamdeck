@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useDashboardStore } from '@/hooks/useDashboardStore'
 import { useTheme } from '@/hooks/useTheme'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
@@ -106,6 +106,17 @@ function App() {
     store.pushToast(anyUnmuted ? 'Muted all streams.' : 'Unmuted all streams.', 'info')
   }, [store])
 
+  const allControlsCollapsed = useMemo(
+    () => store.visibleStreams.length > 0 && store.visibleStreams.every((s) => s.controlsCollapsed),
+    [store.visibleStreams],
+  )
+
+  const handleToggleAllControlsCollapsed = useCallback(() => {
+    const next = !allControlsCollapsed
+    store.setAllControlsCollapsed(next)
+    store.pushToast(next ? 'Collapsed all card controls.' : 'Expanded all card controls.', 'info')
+  }, [allControlsCollapsed, store])
+
   const handleShare = useCallback(() => {
     const link = encodeShareLink({
       streams: store.visibleStreams,
@@ -165,6 +176,8 @@ function App() {
           onOpenSettings={() => setSettingsOpen(true)}
           onOpenShortcuts={() => setShortcutsOpen(true)}
           onMuteAll={handleMuteAll}
+          onToggleAllControlsCollapsed={handleToggleAllControlsCollapsed}
+          allControlsCollapsed={allControlsCollapsed}
           streamCount={store.visibleStreams.length}
         />
 
