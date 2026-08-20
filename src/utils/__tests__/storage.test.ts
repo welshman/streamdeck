@@ -19,6 +19,7 @@ function makeStream(overrides: Partial<StreamEntry> = {}): StreamEntry {
     isMuted: true,
     showChat: false,
     chatPosition: 'side',
+    controlsCollapsed: false,
     order: 0,
     addedAt: Date.now(),
     ...overrides,
@@ -55,6 +56,26 @@ describe('exportStateToJson / importStateFromJson', () => {
     const result = importStateFromJson(JSON.stringify({ streams: [] }))
     expect(result.ok).toBe(true)
     expect(result.value?.settings.theme).toBe(DEFAULT_DASHBOARD_SETTINGS.theme)
+  })
+
+  it('fills in missing controlsCollapsed with false when importing older data', () => {
+    const oldShapeStream = {
+      id: 'stream_old',
+      platform: 'kick',
+      channelOrId: 'xqc',
+      originalUrl: 'https://kick.com/xqc',
+      label: 'xqc',
+      isHidden: false,
+      isFavorite: false,
+      isMuted: true,
+      showChat: false,
+      chatPosition: 'side',
+      order: 0,
+      addedAt: Date.now(),
+    }
+    const result = importStateFromJson(JSON.stringify({ streams: [oldShapeStream] }))
+    expect(result.ok).toBe(true)
+    expect(result.value?.streams[0].controlsCollapsed).toBe(false)
   })
 })
 

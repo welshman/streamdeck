@@ -14,6 +14,8 @@ import {
   PictureInPicture2,
   Pin,
   PinOff,
+  ChevronsLeft,
+  ChevronsRight,
 } from 'lucide-react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -37,6 +39,7 @@ interface StreamCardProps {
   onToggleMute: (id: string) => void
   onToggleChat: (id: string) => void
   onUpdateLabel: (id: string, label: string) => void
+  onToggleControlsCollapsed: (id: string) => void
 }
 
 export function StreamCard({
@@ -50,6 +53,7 @@ export function StreamCard({
   onToggleMute,
   onToggleChat,
   onUpdateLabel,
+  onToggleControlsCollapsed,
 }: StreamCardProps) {
   const [reloadKey, setReloadKey] = useState(0)
   const [editingLabel, setEditingLabel] = useState(false)
@@ -96,6 +100,7 @@ export function StreamCard({
 
   const showChatPanel = stream.showChat
   const isCompact = density === 'compact'
+  const isCollapsed = stream.controlsCollapsed
 
   return (
     <div
@@ -163,85 +168,105 @@ export function StreamCard({
           </button>
         )}
 
-        <div className="flex shrink-0 items-center gap-0.5">
-          <Tooltip content={stream.isFavorite ? 'Remove from favorites' : 'Add to favorites'}>
-            <IconButton
-              label={stream.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-              active={stream.isFavorite}
-              onClick={() => onToggleFavorite(stream.id)}
-            >
-              <Star className={cx('h-4 w-4', stream.isFavorite && 'fill-yellow-400 text-yellow-400')} aria-hidden="true" />
-            </IconButton>
-          </Tooltip>
+        {/* Collapsing hides everything below except the essential controls,
+            so a card with many streams doesn't force a wide toolbar to
+            always take up space when the user doesn't need it. */}
+        {!isCollapsed && (
+          <div className="flex shrink-0 items-center gap-0.5">
+            <Tooltip content={stream.isFavorite ? 'Remove from favorites' : 'Add to favorites'}>
+              <IconButton
+                label={stream.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                active={stream.isFavorite}
+                onClick={() => onToggleFavorite(stream.id)}
+              >
+                <Star className={cx('h-4 w-4', stream.isFavorite && 'fill-yellow-400 text-yellow-400')} aria-hidden="true" />
+              </IconButton>
+            </Tooltip>
 
-          <Tooltip content={isFeatured ? 'Unset as featured' : 'Set as featured'}>
-            <IconButton
-              label={isFeatured ? 'Unset as featured stream' : 'Set as featured stream'}
-              active={isFeatured}
-              onClick={() => onSetFeatured(isFeatured ? null : stream.id)}
-            >
-              {isFeatured ? <PinOff className="h-4 w-4" aria-hidden="true" /> : <Pin className="h-4 w-4" aria-hidden="true" />}
-            </IconButton>
-          </Tooltip>
+            <Tooltip content={isFeatured ? 'Unset as featured' : 'Set as featured'}>
+              <IconButton
+                label={isFeatured ? 'Unset as featured stream' : 'Set as featured stream'}
+                active={isFeatured}
+                onClick={() => onSetFeatured(isFeatured ? null : stream.id)}
+              >
+                {isFeatured ? <PinOff className="h-4 w-4" aria-hidden="true" /> : <Pin className="h-4 w-4" aria-hidden="true" />}
+              </IconButton>
+            </Tooltip>
 
-          <Tooltip content={stream.isMuted ? 'Unmute' : 'Mute'}>
-            <IconButton label={stream.isMuted ? `Unmute ${stream.label}` : `Mute ${stream.label}`} onClick={() => onToggleMute(stream.id)}>
-              {stream.isMuted ? <VolumeX className="h-4 w-4" aria-hidden="true" /> : <Volume2 className="h-4 w-4" aria-hidden="true" />}
-            </IconButton>
-          </Tooltip>
+            <Tooltip content={stream.isMuted ? 'Unmute' : 'Mute'}>
+              <IconButton label={stream.isMuted ? `Unmute ${stream.label}` : `Mute ${stream.label}`} onClick={() => onToggleMute(stream.id)}>
+                {stream.isMuted ? <VolumeX className="h-4 w-4" aria-hidden="true" /> : <Volume2 className="h-4 w-4" aria-hidden="true" />}
+              </IconButton>
+            </Tooltip>
 
-          <Tooltip content={showChatPanel ? 'Hide chat' : 'Show chat'}>
-            <IconButton
-              label={showChatPanel ? `Hide chat for ${stream.label}` : `Show chat for ${stream.label}`}
-              active={showChatPanel}
-              onClick={() => onToggleChat(stream.id)}
-            >
-              {showChatPanel ? <MessageSquareOff className="h-4 w-4" aria-hidden="true" /> : <MessageSquare className="h-4 w-4" aria-hidden="true" />}
-            </IconButton>
-          </Tooltip>
+            <Tooltip content={showChatPanel ? 'Hide chat' : 'Show chat'}>
+              <IconButton
+                label={showChatPanel ? `Hide chat for ${stream.label}` : `Show chat for ${stream.label}`}
+                active={showChatPanel}
+                onClick={() => onToggleChat(stream.id)}
+              >
+                {showChatPanel ? <MessageSquareOff className="h-4 w-4" aria-hidden="true" /> : <MessageSquare className="h-4 w-4" aria-hidden="true" />}
+              </IconButton>
+            </Tooltip>
 
-          <Tooltip content="Picture-in-picture">
-            <IconButton label={`Try picture-in-picture for ${stream.label}`} onClick={handlePip}>
-              <PictureInPicture2 className="h-4 w-4" aria-hidden="true" />
-            </IconButton>
-          </Tooltip>
+            <Tooltip content="Picture-in-picture">
+              <IconButton label={`Try picture-in-picture for ${stream.label}`} onClick={handlePip}>
+                <PictureInPicture2 className="h-4 w-4" aria-hidden="true" />
+              </IconButton>
+            </Tooltip>
 
-          <Tooltip content="Fullscreen">
-            <IconButton label={`Fullscreen ${stream.label}`} onClick={handleFullscreen}>
-              <Maximize className="h-4 w-4" aria-hidden="true" />
-            </IconButton>
-          </Tooltip>
+            <Tooltip content="Fullscreen">
+              <IconButton label={`Fullscreen ${stream.label}`} onClick={handleFullscreen}>
+                <Maximize className="h-4 w-4" aria-hidden="true" />
+              </IconButton>
+            </Tooltip>
 
-          <Tooltip content="Reload player">
-            <IconButton label={`Reload ${stream.label}`} onClick={() => setReloadKey((k) => k + 1)}>
-              <RefreshCw className="h-4 w-4" aria-hidden="true" />
-            </IconButton>
-          </Tooltip>
+            <Tooltip content="Reload player">
+              <IconButton label={`Reload ${stream.label}`} onClick={() => setReloadKey((k) => k + 1)}>
+                <RefreshCw className="h-4 w-4" aria-hidden="true" />
+              </IconButton>
+            </Tooltip>
 
-          <Tooltip content="Open original stream">
-            <a
-              href={stream.originalUrl}
-              target="_blank"
-              rel="noreferrer noopener"
-              aria-label={`Open ${stream.label} on ${stream.platform}`}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-muted hover:bg-surface hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
-            >
-              <ExternalLink className="h-4 w-4" aria-hidden="true" />
-            </a>
-          </Tooltip>
+            <Tooltip content="Open original stream">
+              <a
+                href={stream.originalUrl}
+                target="_blank"
+                rel="noreferrer noopener"
+                aria-label={`Open ${stream.label} on ${stream.platform}`}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-muted hover:bg-surface hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+              >
+                <ExternalLink className="h-4 w-4" aria-hidden="true" />
+              </a>
+            </Tooltip>
 
-          <Tooltip content="Hide (keep saved)">
-            <IconButton label={`Hide ${stream.label}`} onClick={() => onHide(stream.id)}>
-              <EyeOff className="h-4 w-4" aria-hidden="true" />
-            </IconButton>
-          </Tooltip>
+            <Tooltip content="Hide (keep saved)">
+              <IconButton label={`Hide ${stream.label}`} onClick={() => onHide(stream.id)}>
+                <EyeOff className="h-4 w-4" aria-hidden="true" />
+              </IconButton>
+            </Tooltip>
 
-          <Tooltip content="Remove stream">
-            <IconButton label={`Remove ${stream.label}`} variant="danger" onClick={() => onRemove(stream)}>
-              <X className="h-4 w-4" aria-hidden="true" />
-            </IconButton>
-          </Tooltip>
-        </div>
+            <Tooltip content="Remove stream">
+              <IconButton label={`Remove ${stream.label}`} variant="danger" onClick={() => onRemove(stream)}>
+                <X className="h-4 w-4" aria-hidden="true" />
+              </IconButton>
+            </Tooltip>
+          </div>
+        )}
+
+        <Tooltip content={isCollapsed ? 'Show all controls' : 'Collapse controls'}>
+          <IconButton
+            label={isCollapsed ? `Show all controls for ${stream.label}` : `Collapse controls for ${stream.label}`}
+            active={isCollapsed}
+            onClick={() => onToggleControlsCollapsed(stream.id)}
+            className="shrink-0"
+          >
+            {isCollapsed ? (
+              <ChevronsLeft className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              <ChevronsRight className="h-4 w-4" aria-hidden="true" />
+            )}
+          </IconButton>
+        </Tooltip>
       </div>
     </div>
   )
