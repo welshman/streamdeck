@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "streams": [
+    {
+      "id": "stream_example_twitch",
+      "platform": "twitch",
+      "channelOrId": "shroud",
+      "originalUrl": "https://www.twitch.tv/shroud",
+      "label": "Shroud",
+      "isHidden": false,
+      "isFavorite": true,
+      "isMuted": true,
+      "showChat": true,
+      "chatPosition": "side",
+      "order": 0,
+      "addedAt": 1735000000000
+    },
+    {
+      "id": "stream_example_kick",
+      "platform": "kick",
+      "channelOrId": "xqc",
+      "originalUrl": "https://kick.com/xqc",
+      "label": "xQc",
+      "isHidden": false,
+      "isFavorite": false,
+      "isMuted": true,
+      "showChat": false,
+      "chatPosition": "side",
+      "order": 1,
+      "addedAt": 1735000001000
+    },
+    {
+      "id": "stream_example_youtube",
+      "platform": "youtube",
+      "channelOrId": "jfKfPfyJRdk",
+      "originalUrl": "https://www.youtube.com/watch?v=jfKfPfyJRdk",
+      "label": "Lofi Girl — 24/7 lofi hip hop radio",
+      "isHidden": false,
+      "isFavorite": false,
+      "isMuted": true,
+      "showChat": false,
+      "chatPosition": "hidden",
+      "order": 2,
+      "addedAt": 1735000002000
+    }
+  ],
+  "settings": {
+    "theme": "dark",
+    "layout": "grid",
+    "density": "comfortable",
+    "featuredStreamId": "stream_example_twitch",
+    "sidebarOpen": true,
+    "sidebarSide": "right",
+    "chatsGloballyHidden": false,
+    "hideOfflineStreams": false,
+    "reducedMotionOverride": null
+  },
+  "recents": []
+}
