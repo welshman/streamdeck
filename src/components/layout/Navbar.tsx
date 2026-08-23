@@ -89,7 +89,7 @@ export function Navbar({
         <button
           type="button"
           onClick={onAddStream}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-white shadow-card hover:bg-accent-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-surface-raised px-3 py-1.5 text-sm font-semibold text-text shadow-card hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
         >
           <Plus className="h-4 w-4" aria-hidden="true" />
           <span className="hidden sm:inline">Add stream</span>
@@ -123,7 +123,7 @@ export function Navbar({
                   }}
                   className={cx(
                     'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm hover:bg-surface',
-                    layout === id ? 'bg-accent/10 text-accent' : 'text-text',
+                    layout === id ? 'bg-accent/10 text-accent' : 'text-text'
                   )}
                 >
                   <Icon className="h-4 w-4" aria-hidden="true" />
@@ -140,7 +140,9 @@ export function Navbar({
           </IconButton>
         </Tooltip>
 
-        <Tooltip content={allControlsCollapsed ? 'Expand all card controls' : 'Collapse all card controls'}>
+        <Tooltip
+          content={allControlsCollapsed ? 'Expand all card controls' : 'Collapse all card controls'}
+        >
           <IconButton
             label={allControlsCollapsed ? 'Expand all card controls' : 'Collapse all card controls'}
             onClick={onToggleAllControlsCollapsed}
@@ -190,7 +192,7 @@ export function Navbar({
                     }}
                     className={cx(
                       'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm hover:bg-surface',
-                      theme === id ? 'bg-accent/10 text-accent' : 'text-text',
+                      theme === id ? 'bg-accent/10 text-accent' : 'text-text'
                     )}
                   >
                     <Icon className="h-4 w-4" aria-hidden="true" />
