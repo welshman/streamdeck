@@ -145,7 +145,6 @@ export function Navbar({
             label={allControlsCollapsed ? 'Expand all card controls' : 'Collapse all card controls'}
             onClick={onToggleAllControlsCollapsed}
             disabled={streamCount === 0}
-            active={allControlsCollapsed}
           >
             {allControlsCollapsed ? (
               <ChevronsLeft className="h-[18px] w-[18px]" aria-hidden="true" />
