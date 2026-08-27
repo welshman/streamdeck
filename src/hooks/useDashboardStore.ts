@@ -232,6 +232,18 @@ export function useDashboardStore() {
     setSettings((prev) => ({ ...prev, hideOfflineStreams: value }))
   }, [])
 
+  // Called by a live-status poller (e.g. useLiveStatusPolling) to record
+  // the outcome of checking whether a stream is currently live. `isLive`
+  // is left undefined on failed/errored checks so a network hiccup never
+  // makes a stream disappear under "hide offline streams".
+  const setStreamLiveStatus = useCallback((id: string, isLive: boolean | undefined) => {
+    setStreams((prev) =>
+      prev.map((s) =>
+        s.id === id ? { ...s, isLive, lastStatusCheckAt: Date.now() } : s,
+      ),
+    )
+  }, [])
+
   const reorderStreams = useCallback((orderedIds: string[]) => {
     setStreams((prev) => {
       const byId = new Map(prev.map((s) => [s.id, s]))
@@ -281,18 +293,20 @@ export function useDashboardStore() {
     setSettings((prev) => ({ ...prev, featuredStreamId: null }))
   }, [])
 
-  // NOTE: `settings.hideOfflineStreams` is intentionally not applied
-  // here yet. StreamEntry has no live/offline status field and nothing
-  // polls platform APIs to populate one, so filtering on it would either
-  // be a no-op or (if done incorrectly) fail the TypeScript build, since
-  // `isLive` doesn't exist on StreamEntry. Once `isLive?: boolean` is
-  // added to StreamEntry in src/types/stream.ts and a live-status
-  // poller sets it, extend this filter to also exclude
-  // `s.isLive === false` streams when hideOfflineStreams is on.
-  const visibleStreams = useMemo(
-    () => reorder(streams.filter((s) => !s.isHidden)),
-    [streams],
-  )
+  // FIX: `hideOfflineStreams` used to be a dead toggle -- nothing read
+  // it, so it had no effect. Now, when it's on, streams that have been
+  // *confirmed* offline (isLive === false) are excluded. Streams whose
+  // status hasn't been checked yet, or whose last check failed
+  // (isLive === undefined), are always kept visible -- this setting can
+  // never hide a stream before we actually know it's offline, and a
+  // flaky status check can never nuke your whole dashboard.
+  const visibleStreams = useMemo(() => {
+    const notHidden = streams.filter((s) => !s.isHidden)
+    const filtered = settings.hideOfflineStreams
+      ? notHidden.filter((s) => s.isLive !== false)
+      : notHidden
+    return reorder(filtered)
+  }, [streams, settings.hideOfflineStreams])
 
   const hiddenStreams = useMemo(() => streams.filter((s) => s.isHidden), [streams])
 
@@ -329,6 +343,7 @@ export function useDashboardStore() {
     setSidebarOpen,
     setSidebarSide,
     setHideOfflineStreams,
+    setStreamLiveStatus,
     reorderStreams,
     resetLayout,
     markViewed,
