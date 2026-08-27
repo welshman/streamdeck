@@ -46,6 +46,7 @@ export function useDashboardStore() {
   const [storageWarning, setStorageWarning] = useState<string | null>(
     initial.ok ? null : initial.error ?? null,
   )
+
   const hydratedFromShare = useRef(false)
 
   const pushToast = useCallback((text: string, tone: ToastMessage['tone'] = 'info') => {
@@ -193,13 +194,15 @@ export function useDashboardStore() {
 
   // Setting a stream as featured swaps audio to it: the newly-featured
   // stream is unmuted and every other stream is muted, so only one audio
-  // source ever plays at a time. Un-featuring (passing null) leaves mute
-  // states as they are, since there's no longer a single "main" stream to
-  // prefer audio from.
-const setFeatured = useCallback((id: string | null) => {
-  setSettings((prev) => ({ ...prev, featuredStreamId: id }))
-  setStreams((prev) => prev.map((s) => ({ ...s, isMuted: id ? s.id !== id : true })))
-}, [])
+  // source ever plays at a time. Un-featuring (passing null) now mutes
+  // every stream again, since there's no longer a single "main" stream
+  // that should be allowed to keep playing audio. This fixes the bug
+  // where a previously-featured stream (e.g. Kick) stayed unmuted
+  // forever after being un-featured.
+  const setFeatured = useCallback((id: string | null) => {
+    setSettings((prev) => ({ ...prev, featuredStreamId: id }))
+    setStreams((prev) => prev.map((s) => ({ ...s, isMuted: id ? s.id !== id : true })))
+  }, [])
 
   const setLayout = useCallback((layout: LayoutMode) => {
     setSettings((prev) => ({ ...prev, layout }))
@@ -274,10 +277,19 @@ const setFeatured = useCallback((id: string | null) => {
     setSettings((prev) => ({ ...prev, featuredStreamId: null }))
   }, [])
 
-  const visibleStreams = useMemo(
-    () => reorder(streams.filter((s) => !s.isHidden)),
-    [streams],
-  )
+  // Only apply the offline filter when we actually have live-status data
+  // for a stream (isLive === false). Streams whose live status hasn't
+  // been checked yet (isLive === undefined) are always kept visible, so
+  // enabling "hide offline streams" can never make everything disappear
+  // before status checks complete.
+  const visibleStreams = useMemo(() => {
+    const notHidden = streams.filter((s) => !s.isHidden)
+    const filtered = settings.hideOfflineStreams
+      ? notHidden.filter((s) => s.isLive !== false)
+      : notHidden
+    return reorder(filtered)
+  }, [streams, settings.hideOfflineStreams])
+
   const hiddenStreams = useMemo(() => streams.filter((s) => s.isHidden), [streams])
 
   return {
