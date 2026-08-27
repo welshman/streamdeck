@@ -123,10 +123,7 @@ export function StreamCard({
         {showChatPanel && (
           <ChatPanel
             stream={stream}
-            className={cx(
-              'h-40 shrink-0 sm:h-auto sm:w-64',
-              chatSupported(stream.platform) && 'sm:w-72',
-            )}
+            className={cx('h-40 shrink-0 sm:h-auto sm:w-64', chatSupported(stream.platform) && 'sm:w-72')}
           />
         )}
       </div>
@@ -197,10 +194,7 @@ export function StreamCard({
             </Tooltip>
 
             <Tooltip content={stream.isMuted ? 'Unmute' : 'Mute'}>
-              <IconButton
-                label={stream.isMuted ? `Unmute ${stream.label}` : `Mute ${stream.label}`}
-                onClick={() => onToggleMute(stream.id)}
-              >
+              <IconButton label={stream.isMuted ? `Unmute ${stream.label}` : `Mute ${stream.label}`} onClick={() => onToggleMute(stream.id)}>
                 {stream.isMuted ? <VolumeX className="h-4 w-4" aria-hidden="true" /> : <Volume2 className="h-4 w-4" aria-hidden="true" />}
               </IconButton>
             </Tooltip>
@@ -266,7 +260,11 @@ export function StreamCard({
             onClick={() => onToggleControlsCollapsed(stream.id)}
             className="shrink-0"
           >
-            {isCollapsed ? <ChevronsLeft className="h-4 w-4" aria-hidden="true" /> : <ChevronsRight className="h-4 w-4" aria-hidden="true" />}
+            {isCollapsed ? (
+              <ChevronsLeft className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              <ChevronsRight className="h-4 w-4" aria-hidden="true" />
+            )}
           </IconButton>
         </Tooltip>
       </div>
