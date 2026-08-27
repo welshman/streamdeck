@@ -146,7 +146,7 @@ function App() {
   )
 
   const cycleTheme = useCallback(() => {
-    const order: Array<'dark' | 'light' | 'system'> = ['dark', 'light', 'system']
+    const order: Array<typeof store.settings.theme> = ['dark', 'light', 'system']
     const next = order[(order.indexOf(store.settings.theme) + 1) % order.length]
     store.setTheme(next)
   }, [store])
@@ -171,8 +171,12 @@ function App() {
 
   return (
     <DashboardContext.Provider value={store}>
-      <div className="flex min-h-screen flex-col bg-surface text-text">
+      <div className="flex h-screen flex-col bg-surface">
         <Navbar
+          layout={store.settings.layout}
+          onLayoutChange={store.setLayout}
+          theme={store.settings.theme}
+          onThemeChange={store.setTheme}
           sidebarOpen={store.settings.sidebarOpen}
           onToggleSidebar={() => store.setSidebarOpen(!store.settings.sidebarOpen)}
           onAddStream={() => setAddModalOpen(true)}
@@ -184,45 +188,39 @@ function App() {
           streamCount={store.visibleStreams.length}
         />
 
-        <div className="flex flex-1">
-          {store.settings.sidebarOpen && (
-            <Sidebar
-              favoriteStreams={favoriteStreams}
-              hiddenStreams={store.hiddenStreams}
-              onUnhide={handleUnhide}
-              recents={store.recents}
-              onAddFromRecent={handleAddFromRecent}
-              side={store.settings.sidebarSide}
-            />
-          )}
-
-          <main className="flex-1 px-4 py-4">
+        <div className="flex min-h-0 flex-1 overflow-hidden">
+          <main className="flex-1 overflow-y-auto p-4">
             {!store.storageAvailable && (
-              <div className="mb-4 rounded-lg border border-yellow-500/40 bg-yellow-500/10 px-3 py-2 text-sm text-yellow-200">
+              <div className="mb-4 rounded-lg border border-yellow-500/40 bg-yellow-500/10 px-3 py-2 text-sm text-yellow-600 dark:text-yellow-400">
                 localStorage is unavailable in this browser context (e.g. private browsing).
                 Your changes will work during this session but won't be saved after you
                 close the tab.
               </div>
             )}
 
-            <div className="mb-3 flex items-center justify-between">
-              <p className="text-sm text-text-muted">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+              <h1 className="text-sm font-medium text-text-muted">
                 {store.visibleStreams.length === 0
                   ? 'No active streams'
                   : `Viewing ${store.visibleStreams.length} stream${store.visibleStreams.length === 1 ? '' : 's'}`}
-              </p>
-              <button
-                type="button"
-                onClick={handleShare}
-                className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-text-muted hover:bg-surface-raised hover:text-text"
-              >
-                <Share2 className="h-4 w-4" aria-hidden="true" />
-                Share
-              </button>
+              </h1>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleShare}
+                  disabled={store.visibleStreams.length === 0}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm text-text hover:bg-surface-raised disabled:opacity-40"
+                >
+                  <Share2 className="h-4 w-4" aria-hidden="true" />
+                  Share
+                </button>
+              </div>
             </div>
 
             {store.visibleStreams.length === 0 ? (
               <EmptyState
+                title="Add your first stream"
+                description="Paste a Twitch, Kick, or YouTube URL (or just a channel name) to start building your multi-stream dashboard. Everything is saved locally in your browser."
                 action={
                   <button
                     type="button"
@@ -252,13 +250,27 @@ function App() {
               />
             )}
           </main>
+
+          <Sidebar
+            open={store.settings.sidebarOpen}
+            side={store.settings.sidebarSide}
+            hiddenStreams={store.hiddenStreams}
+            favoriteStreams={favoriteStreams}
+            recents={store.recents}
+            onUnhide={handleUnhide}
+            onDelete={handleRemoveRequest}
+            onAddFromRecent={handleAddFromRecent}
+          />
         </div>
 
-        <StatusBar storageWarning={store.storageWarning} />
-        <ToastStack toasts={store.toasts} onDismiss={store.dismissToast} />
+        <StatusBar
+          visibleCount={store.visibleStreams.length}
+          hiddenCount={store.hiddenStreams.length}
+          storageAvailable={store.storageAvailable}
+        />
 
         <AddStreamModal
-          open={addModalOpen}
+          isOpen={addModalOpen}
           onClose={() => setAddModalOpen(false)}
           onAdd={handleAdd}
           recents={store.recents}
@@ -266,7 +278,7 @@ function App() {
         />
 
         <SettingsModal
-          open={settingsOpen}
+          isOpen={settingsOpen}
           onClose={() => setSettingsOpen(false)}
           settings={store.settings}
           onSetDensity={store.setDensity}
@@ -278,17 +290,24 @@ function App() {
           onClearAll={store.clearAllStreams}
         />
 
-        <ShortcutsModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+        <ShortcutsModal isOpen={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
 
-        <ShareLinkModal open={shareOpen} onClose={() => setShareOpen(false)} link={shareLink} />
+        <ShareLinkModal isOpen={shareOpen} onClose={() => setShareOpen(false)} link={shareLink} />
 
         <ConfirmDialog
-          open={pendingDelete !== null}
+          isOpen={pendingDelete !== null}
           title="Remove stream?"
-          message={pendingDelete ? `Remove ${pendingDelete.label}? This can't be undone.` : ''}
+          message={
+            pendingDelete
+              ? `This will permanently remove ${pendingDelete.label} from your dashboard. If you just want to keep it without watching, use Hide instead.`
+              : ''
+          }
+          confirmLabel="Remove"
           onConfirm={confirmDelete}
           onCancel={() => setPendingDelete(null)}
         />
+
+        <ToastStack toasts={store.toasts} onDismiss={store.dismissToast} />
       </div>
     </DashboardContext.Provider>
   )
