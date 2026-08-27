@@ -1,78 +1,181 @@
-import { useState, useCallback } from 'react';
-import { useDashboardStore } from '../../hooks/useDashboardStore';
-import { Stream } from '../../types/stream';
-import StreamCard from './StreamCard';
-import StreamSkeleton from './StreamSkeleton';
+import {
+  DndContext,
+  DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  rectSortingStrategy,
+  sortableKeyboardCoordinates,
+} from '@dnd-kit/sortable'
+import { LayoutMode, StreamEntry } from '@/types/stream'
+import { StreamCard } from './StreamCard'
+import { cx } from '@/utils/classNames'
 
 interface StreamGridProps {
-  streams: Stream[];
-  isLoading: boolean;
+  streams: StreamEntry[]
+  layout: LayoutMode
+  density: 'compact' | 'comfortable'
+  featuredStreamId: string | null
+  onReorder: (orderedIds: string[]) => void
+  onRemove: (stream: StreamEntry) => void
+  onHide: (id: string) => void
+  onSetFeatured: (id: string | null) => void
+  onToggleFavorite: (id: string) => void
+  onToggleMute: (id: string) => void
+  onToggleChat: (id: string) => void
+  onUpdateLabel: (id: string, label: string) => void
+  onToggleControlsCollapsed: (id: string) => void
 }
 
-export function StreamGrid({ streams, isLoading }: StreamGridProps) {
-  const { updateStreamOrder } = useDashboardStore();
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+const GRID_CLASSES: Record<LayoutMode, string> = {
+  grid: 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
+  'columns-2': 'grid grid-cols-1 gap-4 sm:grid-cols-2',
+  'columns-3': 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3',
+  'columns-4': 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4',
+  featured: '',
+  pip: '',
+  focus: '',
+}
 
-  const handleDragStart = useCallback((index: number) => {
-    setDraggedIndex(index);
-  }, []);
+export function StreamGrid({
+  streams,
+  layout,
+  density,
+  featuredStreamId,
+  onReorder,
+  onRemove,
+  onHide,
+  onSetFeatured,
+  onToggleFavorite,
+  onToggleMute,
+  onToggleChat,
+  onUpdateLabel,
+  onToggleControlsCollapsed,
+}: StreamGridProps) {
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
 
-  const handleDragOver = useCallback((e: React.DragEvent, _index: number) => {
-    e.preventDefault();
-  }, []);
-
-  const handleDrop = useCallback((e: React.DragEvent, dropIndex: number) => {
-    e.preventDefault();
-    if (draggedIndex === null || draggedIndex === dropIndex) return;
-    
-    // Create new order by rearranging stream IDs
-    const streamsCopy = [...streams];
-    const [removed] = streamsCopy.splice(draggedIndex, 1);
-    streamsCopy.splice(dropIndex, 0, removed);
-    
-    // Update order with the new stream ID sequence
-    const newOrder = streamsCopy.map(s => s.id);
-    updateStreamOrder(newOrder);
-    setDraggedIndex(null);
-  }, [draggedIndex, streams, updateStreamOrder]);
-
-  const handleDragEnd = useCallback(() => {
-    setDraggedIndex(null);
-  }, []);
-
-  if (isLoading) {
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <StreamSkeleton key={i} />
-        ))}
-      </div>
-    );
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const ids = streams.map((s) => s.id)
+    const fromIndex = ids.indexOf(String(active.id))
+    const toIndex = ids.indexOf(String(over.id))
+    if (fromIndex === -1 || toIndex === -1) return
+    const next = ids.slice()
+    next.splice(fromIndex, 1)
+    next.splice(toIndex, 0, String(active.id))
+    onReorder(next)
   }
 
-  if (streams.length === 0) {
+  const cardProps = (stream: StreamEntry) => ({
+    stream,
+    isFeatured: stream.id === featuredStreamId,
+    density,
+    onRemove,
+    onHide,
+    onSetFeatured,
+    onToggleFavorite,
+    onToggleMute,
+    onToggleChat,
+    onUpdateLabel,
+    onToggleControlsCollapsed,
+  })
+
+  if (layout === 'focus') {
+    const focused = streams.find((s) => s.id === featuredStreamId) ?? streams[0]
+    const rest = streams.filter((s) => s.id !== focused?.id)
     return (
-      <div className="text-center py-12 text-muted-foreground">
-        <p>No streams added yet. Add some streams to get started!</p>
-      </div>
-    );
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <div className="flex flex-col gap-4">
+          {focused && (
+            <div className="mx-auto w-full max-w-4xl">
+              <StreamCard {...cardProps(focused)} />
+            </div>
+          )}
+          {rest.length > 0 && (
+            <SortableContext items={rest.map((s) => s.id)} strategy={rectSortingStrategy}>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+                {rest.map((s) => (
+                  <div key={s.id} className="aspect-video">
+                    <StreamCard {...cardProps(s)} />
+                  </div>
+                ))}
+              </div>
+            </SortableContext>
+          )}
+        </div>
+      </DndContext>
+    )
+  }
+
+  if (layout === 'featured' || layout === 'pip') {
+    const featured = streams.find((s) => s.id === featuredStreamId) ?? streams[0]
+    const secondary = streams.filter((s) => s.id !== featured?.id)
+
+    if (layout === 'pip') {
+      return (
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <div className="relative min-h-[60vh] rounded-2xl bg-black/10">
+            {featured && (
+              <div className="h-[70vh] max-h-[800px] w-full">
+                <StreamCard {...cardProps(featured)} />
+              </div>
+            )}
+            {secondary.length > 0 && (
+              <SortableContext items={secondary.map((s) => s.id)} strategy={rectSortingStrategy}>
+                <div className="mt-3 flex flex-wrap gap-3 sm:absolute sm:bottom-3 sm:right-3 sm:mt-0 sm:w-72">
+                  {secondary.map((s) => (
+                    <div key={s.id} className="w-full sm:w-64">
+                      <StreamCard {...cardProps(s)} />
+                    </div>
+                  ))}
+                </div>
+              </SortableContext>
+            )}
+          </div>
+        </DndContext>
+      )
+    }
+
+    return (
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2.2fr)_minmax(280px,1fr)]">
+          {featured && (
+            <div className="min-h-[40vh]">
+              <StreamCard {...cardProps(featured)} />
+            </div>
+          )}
+          {secondary.length > 0 && (
+            <SortableContext items={secondary.map((s) => s.id)} strategy={rectSortingStrategy}>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                {secondary.map((s) => (
+                  <StreamCard key={s.id} {...cardProps(s)} />
+                ))}
+              </div>
+            </SortableContext>
+          )}
+        </div>
+      </DndContext>
+    )
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-      {streams.map((stream, index) => (
-        <div
-          key={stream.id}
-          draggable
-          onDragStart={() => handleDragStart(index)}
-          onDragOver={(e) => handleDragOver(e, index)}
-          onDrop={(e) => handleDrop(e, index)}
-          onDragEnd={handleDragEnd}
-          className={draggedIndex === index ? 'opacity-50' : ''}
-        >
-          <StreamCard stream={stream} index={index} />
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <SortableContext items={streams.map((s) => s.id)} strategy={rectSortingStrategy}>
+        <div className={cx(GRID_CLASSES[layout])}>
+          {streams.map((s) => (
+            <StreamCard key={s.id} {...cardProps(s)} />
+          ))}
         </div>
-      ))}
-    </div>
-  );
+      </SortableContext>
+    </DndContext>
+  )
 }
