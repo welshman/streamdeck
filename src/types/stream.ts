@@ -49,18 +49,6 @@ export interface StreamEntry {
   order: number
   addedAt: number
   lastViewedAt?: number
-  /**
-   * Live status as of the last successful status check.
-   * - `true`  -> confirmed live
-   * - `false` -> confirmed offline
-   * - `undefined` -> not checked yet, or the last check failed/errored
-   * Kept optional/undefined-by-default so "hide offline streams" can
-   * never hide a stream whose status simply hasn't been determined.
-   */
-  isLive?: boolean
-  /** Timestamp (ms) of the last live-status check attempt, successful
-   * or not. Used to throttle polling per stream. */
-  lastStatusCheckAt?: number
 }
 
 export interface RecentStream {
