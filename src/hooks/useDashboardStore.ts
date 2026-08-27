@@ -196,12 +196,10 @@ export function useDashboardStore() {
   // source ever plays at a time. Un-featuring (passing null) leaves mute
   // states as they are, since there's no longer a single "main" stream to
   // prefer audio from.
-  const setFeatured = useCallback((id: string | null) => {
-    setSettings((prev) => ({ ...prev, featuredStreamId: id }))
-    if (id) {
-      setStreams((prev) => prev.map((s) => ({ ...s, isMuted: s.id !== id })))
-    }
-  }, [])
+const setFeatured = useCallback((id: string | null) => {
+  setSettings((prev) => ({ ...prev, featuredStreamId: id }))
+  setStreams((prev) => prev.map((s) => ({ ...s, isMuted: id ? s.id !== id : true })))
+}, [])
 
   const setLayout = useCallback((layout: LayoutMode) => {
     setSettings((prev) => ({ ...prev, layout }))
