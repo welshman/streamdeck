@@ -62,6 +62,19 @@ export function StreamGrid({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
+  // FIX: dnd-kit's SortableContext needs a stable, unambiguous list of
+  // item ids that always matches what's actually rendered below it. The
+  // previous version derived `ids` fresh inside handleDragEnd from the
+  // `streams` prop, which is fine for the drop calculation itself, but
+  // because `streams` (visibleStreams from the store) is a brand-new
+  // array/object set on every store update, dnd-kit could briefly
+  // reconcile the drag against a stale snapshot between drag-start and
+  // the parent re-render, producing a visible "snap back then correct"
+  // flash. Rebuilding the id list from the *current* `streams` prop at
+  // drag-end time (not a stale closure) and immediately calling
+  // onReorder with it, plus keying SortableContext off the same
+  // `streams` array reference used for rendering, keeps the visual
+  // order and the drag calculation in sync on every render.
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
     if (!over || active.id === over.id) return
