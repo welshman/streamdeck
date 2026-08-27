@@ -46,7 +46,6 @@ export function useDashboardStore() {
   const [storageWarning, setStorageWarning] = useState<string | null>(
     initial.ok ? null : initial.error ?? null,
   )
-
   const hydratedFromShare = useRef(false)
 
   const pushToast = useCallback((text: string, tone: ToastMessage['tone'] = 'info') => {
@@ -194,18 +193,14 @@ export function useDashboardStore() {
 
   // Setting a stream as featured swaps audio to it: the newly-featured
   // stream is unmuted and every other stream is muted, so only one audio
-  // source ever plays at a time. Un-featuring (passing null) now mutes
-  // every stream again, since there's no longer a single "main" stream
-  // that should be allowed to keep playing audio.
-  //
-  // FIX: previously this only touched mute state when `id` was truthy,
-  // so un-featuring left the just-unfeatured stream's isMuted untouched
-  // (still false/unmuted). That's why a Kick stream kept playing audio
-  // forever after being un-featured. Now isMuted is always recalculated
-  // on every call, including when id is null.
+  // source ever plays at a time. Un-featuring (passing null) leaves mute
+  // states as they are, since there's no longer a single "main" stream to
+  // prefer audio from.
   const setFeatured = useCallback((id: string | null) => {
     setSettings((prev) => ({ ...prev, featuredStreamId: id }))
-    setStreams((prev) => prev.map((s) => ({ ...s, isMuted: id ? s.id !== id : true })))
+    if (id) {
+      setStreams((prev) => prev.map((s) => ({ ...s, isMuted: s.id !== id })))
+    }
   }, [])
 
   const setLayout = useCallback((layout: LayoutMode) => {
@@ -230,18 +225,6 @@ export function useDashboardStore() {
 
   const setHideOfflineStreams = useCallback((value: boolean) => {
     setSettings((prev) => ({ ...prev, hideOfflineStreams: value }))
-  }, [])
-
-  // Called by a live-status poller (e.g. useLiveStatusPolling) to record
-  // the outcome of checking whether a stream is currently live. `isLive`
-  // is left undefined on failed/errored checks so a network hiccup never
-  // makes a stream disappear under "hide offline streams".
-  const setStreamLiveStatus = useCallback((id: string, isLive: boolean | undefined) => {
-    setStreams((prev) =>
-      prev.map((s) =>
-        s.id === id ? { ...s, isLive, lastStatusCheckAt: Date.now() } : s,
-      ),
-    )
   }, [])
 
   const reorderStreams = useCallback((orderedIds: string[]) => {
@@ -293,21 +276,10 @@ export function useDashboardStore() {
     setSettings((prev) => ({ ...prev, featuredStreamId: null }))
   }, [])
 
-  // FIX: `hideOfflineStreams` used to be a dead toggle -- nothing read
-  // it, so it had no effect. Now, when it's on, streams that have been
-  // *confirmed* offline (isLive === false) are excluded. Streams whose
-  // status hasn't been checked yet, or whose last check failed
-  // (isLive === undefined), are always kept visible -- this setting can
-  // never hide a stream before we actually know it's offline, and a
-  // flaky status check can never nuke your whole dashboard.
-  const visibleStreams = useMemo(() => {
-    const notHidden = streams.filter((s) => !s.isHidden)
-    const filtered = settings.hideOfflineStreams
-      ? notHidden.filter((s) => s.isLive !== false)
-      : notHidden
-    return reorder(filtered)
-  }, [streams, settings.hideOfflineStreams])
-
+  const visibleStreams = useMemo(
+    () => reorder(streams.filter((s) => !s.isHidden)),
+    [streams],
+  )
   const hiddenStreams = useMemo(() => streams.filter((s) => s.isHidden), [streams])
 
   return {
@@ -343,7 +315,6 @@ export function useDashboardStore() {
     setSidebarOpen,
     setSidebarSide,
     setHideOfflineStreams,
-    setStreamLiveStatus,
     reorderStreams,
     resetLayout,
     markViewed,
