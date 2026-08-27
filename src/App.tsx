@@ -10,7 +10,7 @@ import { filterOfflineStreams, checkStreamStatus } from './utils/streamParser';
 import { useTheme } from './hooks/useTheme';
 
 function Dashboard() {
-  const { streams, addStream, removeStream, updateStreamOrder, featuredStreamId, setFeaturedStreamId } = useDashboard();
+  const { streams, addStream, removeStream, featuredStreamId, setFeaturedStreamId } = useDashboard();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);

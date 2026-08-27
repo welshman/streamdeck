@@ -17,7 +17,7 @@ export function StreamGrid({ streams, isLoading }: StreamGridProps) {
     setDraggedIndex(index);
   }, []);
 
-  const handleDragOver = useCallback((e: React.DragEvent, index: number) => {
+  const handleDragOver = useCallback((e: React.DragEvent, _index: number) => {
     e.preventDefault();
   }, []);
 

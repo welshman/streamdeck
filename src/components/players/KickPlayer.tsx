@@ -3,10 +3,10 @@ import { useEffect, useRef } from 'react';
 interface KickPlayerProps {
   channel: string;
   isFeatured: boolean;
-  volume?: number;
+  _volume?: number;
 }
 
-export function KickPlayer({ channel, isFeatured, volume = 0.5 }: KickPlayerProps) {
+export function KickPlayer({ channel, isFeatured, _volume = 0.5 }: KickPlayerProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
