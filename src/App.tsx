@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { useDashboardStore } from '@/hooks/useDashboardStore'
 import { useTheme } from '@/hooks/useTheme'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
+import { useLiveStatusPolling } from '@/hooks/useLiveStatusPolling'
 import { DashboardContext } from '@/context/DashboardContext'
 import { Navbar } from '@/components/layout/Navbar'
 import { Sidebar } from '@/components/layout/Sidebar'
@@ -22,6 +23,12 @@ import { Share2, Plus } from 'lucide-react'
 function App() {
   const store = useDashboardStore()
   useTheme(store.settings.theme)
+
+  // Periodically checks each stream's live/offline status (Kick only
+  // for now -- see useLiveStatusPolling for why) and feeds the result
+  // back into the store so "hide offline streams" in Settings actually
+  // has data to filter on.
+  useLiveStatusPolling(store.streams, store.setStreamLiveStatus)
 
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -139,7 +146,7 @@ function App() {
   )
 
   const cycleTheme = useCallback(() => {
-    const order: Array<typeof store.settings.theme> = ['dark', 'light', 'system']
+    const order: Array<'dark' | 'light' | 'system'> = ['dark', 'light', 'system']
     const next = order[(order.indexOf(store.settings.theme) + 1) % order.length]
     store.setTheme(next)
   }, [store])
@@ -164,12 +171,8 @@ function App() {
 
   return (
     <DashboardContext.Provider value={store}>
-      <div className="flex h-screen flex-col bg-surface">
+      <div className="flex min-h-screen flex-col bg-surface text-text">
         <Navbar
-          layout={store.settings.layout}
-          onLayoutChange={store.setLayout}
-          theme={store.settings.theme}
-          onThemeChange={store.setTheme}
           sidebarOpen={store.settings.sidebarOpen}
           onToggleSidebar={() => store.setSidebarOpen(!store.settings.sidebarOpen)}
           onAddStream={() => setAddModalOpen(true)}
@@ -181,39 +184,45 @@ function App() {
           streamCount={store.visibleStreams.length}
         />
 
-        <div className="flex min-h-0 flex-1 overflow-hidden">
-          <main className="flex-1 overflow-y-auto p-4">
+        <div className="flex flex-1">
+          {store.settings.sidebarOpen && (
+            <Sidebar
+              favoriteStreams={favoriteStreams}
+              hiddenStreams={store.hiddenStreams}
+              onUnhide={handleUnhide}
+              recents={store.recents}
+              onAddFromRecent={handleAddFromRecent}
+              side={store.settings.sidebarSide}
+            />
+          )}
+
+          <main className="flex-1 px-4 py-4">
             {!store.storageAvailable && (
-              <div className="mb-4 rounded-lg border border-yellow-500/40 bg-yellow-500/10 px-3 py-2 text-sm text-yellow-600 dark:text-yellow-400">
+              <div className="mb-4 rounded-lg border border-yellow-500/40 bg-yellow-500/10 px-3 py-2 text-sm text-yellow-200">
                 localStorage is unavailable in this browser context (e.g. private browsing).
-                Your changes will work during this session but won&apos;t be saved after you
+                Your changes will work during this session but won't be saved after you
                 close the tab.
               </div>
             )}
 
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-              <h1 className="text-sm font-medium text-text-muted">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-sm text-text-muted">
                 {store.visibleStreams.length === 0
                   ? 'No active streams'
                   : `Viewing ${store.visibleStreams.length} stream${store.visibleStreams.length === 1 ? '' : 's'}`}
-              </h1>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={handleShare}
-                  disabled={store.visibleStreams.length === 0}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm text-text hover:bg-surface-raised disabled:opacity-40"
-                >
-                  <Share2 className="h-4 w-4" aria-hidden="true" />
-                  Share
-                </button>
-              </div>
+              </p>
+              <button
+                type="button"
+                onClick={handleShare}
+                className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-text-muted hover:bg-surface-raised hover:text-text"
+              >
+                <Share2 className="h-4 w-4" aria-hidden="true" />
+                Share
+              </button>
             </div>
 
             {store.visibleStreams.length === 0 ? (
               <EmptyState
-                title="Add your first stream"
-                description="Paste a Twitch, Kick, or YouTube URL — or just a channel name — to start building your multi-stream dashboard. Everything is saved locally in your browser."
                 action={
                   <button
                     type="button"
@@ -243,65 +252,44 @@ function App() {
               />
             )}
           </main>
-
-          <Sidebar
-            open={store.settings.sidebarOpen}
-            side={store.settings.sidebarSide}
-            hiddenStreams={store.hiddenStreams}
-            favoriteStreams={favoriteStreams}
-            recents={store.recents}
-            onUnhide={handleUnhide}
-            onDelete={handleRemoveRequest}
-            onAddFromRecent={handleAddFromRecent}
-          />
         </div>
 
-        <StatusBar
-          visibleCount={store.visibleStreams.length}
-          hiddenCount={store.hiddenStreams.length}
-          storageAvailable={store.storageAvailable}
+        <StatusBar storageWarning={store.storageWarning} />
+        <ToastStack toasts={store.toasts} onDismiss={store.dismissToast} />
+
+        <AddStreamModal
+          open={addModalOpen}
+          onClose={() => setAddModalOpen(false)}
+          onAdd={handleAdd}
+          recents={store.recents}
+          onAddFromRecent={handleAddFromRecent}
+        />
+
+        <SettingsModal
+          open={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          settings={store.settings}
+          onSetDensity={store.setDensity}
+          onSetSidebarSide={store.setSidebarSide}
+          onSetHideOfflineStreams={store.setHideOfflineStreams}
+          onExport={store.exportConfig}
+          onImport={handleImport}
+          onResetLayout={store.resetLayout}
+          onClearAll={store.clearAllStreams}
+        />
+
+        <ShortcutsModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+
+        <ShareLinkModal open={shareOpen} onClose={() => setShareOpen(false)} link={shareLink} />
+
+        <ConfirmDialog
+          open={pendingDelete !== null}
+          title="Remove stream?"
+          message={pendingDelete ? `Remove ${pendingDelete.label}? This can't be undone.` : ''}
+          onConfirm={confirmDelete}
+          onCancel={() => setPendingDelete(null)}
         />
       </div>
-
-      <AddStreamModal
-        isOpen={addModalOpen}
-        onClose={() => setAddModalOpen(false)}
-        onAdd={handleAdd}
-        recents={store.recents}
-        onAddFromRecent={handleAddFromRecent}
-      />
-
-      <SettingsModal
-        isOpen={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        settings={store.settings}
-        onSetDensity={store.setDensity}
-        onSetSidebarSide={store.setSidebarSide}
-        onSetHideOfflineStreams={store.setHideOfflineStreams}
-        onExport={store.exportConfig}
-        onImport={handleImport}
-        onResetLayout={store.resetLayout}
-        onClearAll={store.clearAllStreams}
-      />
-
-      <ShortcutsModal isOpen={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
-
-      <ShareLinkModal isOpen={shareOpen} onClose={() => setShareOpen(false)} link={shareLink} />
-
-      <ConfirmDialog
-        isOpen={pendingDelete !== null}
-        title="Remove stream?"
-        message={
-          pendingDelete
-            ? `This will permanently remove "${pendingDelete.label}" from your dashboard. If you just want to keep it without watching, use Hide instead.`
-            : ''
-        }
-        confirmLabel="Remove"
-        onConfirm={confirmDelete}
-        onCancel={() => setPendingDelete(null)}
-      />
-
-      <ToastStack toasts={store.toasts} onDismiss={store.dismissToast} />
     </DashboardContext.Provider>
   )
 }
