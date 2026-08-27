@@ -1,229 +1,110 @@
-/**
- * Platform detection and URL/identifier normalization for Twitch, Kick,
- * and YouTube. Pure functions with no side effects so they are easy to
- * unit test (see src/utils/__tests__/streamParser.test.ts).
- */
-import { Platform, ParsedStreamInput, StreamParseError } from '@/types/stream'
+import { Stream, StreamPlatform, StreamStatus } from '../types/stream';
 
-const TWITCH_HOSTS = ['twitch.tv', 'www.twitch.tv', 'm.twitch.tv']
-const KICK_HOSTS = ['kick.com', 'www.kick.com']
-const YOUTUBE_HOSTS = [
-  'youtube.com',
-  'www.youtube.com',
-  'm.youtube.com',
-  'youtu.be',
-  'music.youtube.com',
-]
+interface StreamData {
+  id: string;
+  platform: StreamPlatform;
+  channel: string;
+  title?: string;
+  thumbnail?: string;
+  viewers?: number;
+  isLive?: boolean;
+  url?: string;
+}
 
-const CHANNEL_NAME_RE = /^[a-zA-Z0-9_]{2,25}$/
-const YOUTUBE_ID_RE = /^[a-zA-Z0-9_-]{10,12}$/
-// A real YouTube video ID is a base64url-style token: it virtually always
-// mixes case and/or contains '-'/'_'. A bare, all-lowercase-or-all-digit
-// 11-char string (e.g. "somechannel") is far more likely to be a Twitch/Kick
-// channel name that happens to be 11 characters long, so we only treat a
-// bare 11-char string as a YouTube ID when it "looks like" one.
-const LOOKS_LIKE_YOUTUBE_ID_RE = /^(?=[a-zA-Z0-9_-]{11}$)(?:.*[A-Z].*|.*[-_].*)$/
-
-function tryParseUrl(input: string): URL | null {
+export function parseStreamUrl(url: string): { platform: StreamPlatform; channel: string } | null {
   try {
-    return new URL(input)
+    const parsedUrl = new URL(url);
+    const hostname = parsedUrl.hostname.toLowerCase();
+    const pathParts = parsedUrl.pathname.split('/').filter(Boolean);
+
+    if (hostname.includes('twitch.tv')) {
+      return { platform: 'twitch', channel: pathParts[0] || '' };
+    }
+
+    if (hostname.includes('youtube.com') || hostname.includes('youtu.be')) {
+      if (hostname.includes('youtube.com') && pathParts[0] === 'live') {
+        return { platform: 'youtube', channel: pathParts[1] || '' };
+      }
+      const videoId = parsedUrl.searchParams.get('v') || pathParts[pathParts.length - 1];
+      return { platform: 'youtube', channel: videoId || '' };
+    }
+
+    if (hostname.includes('kick.com')) {
+      return { platform: 'kick', channel: pathParts[0] || '' };
+    }
+
+    return null;
   } catch {
-    try {
-      return new URL(`https://${input}`)
-    } catch {
-      return null
-    }
+    return null;
   }
 }
 
-function hostMatches(host: string, list: string[]): boolean {
-  return list.includes(host.toLowerCase())
-}
-
-/** Extracts a YouTube video id from any supported URL shape, or null. */
-export function extractYouTubeId(url: URL): string | null {
-  const host = url.hostname.toLowerCase()
-
-  if (host === 'youtu.be') {
-    const id = url.pathname.replace(/^\//, '').split('/')[0]
-    return id && YOUTUBE_ID_RE.test(id) ? id : null
-  }
-
-  if (hostMatches(host, YOUTUBE_HOSTS)) {
-    const v = url.searchParams.get('v')
-    if (v && YOUTUBE_ID_RE.test(v)) return v
-
-    const pathParts = url.pathname.split('/').filter(Boolean)
-    const liveIdx = pathParts.findIndex((p) =>
-      ['live', 'embed', 'shorts'].includes(p),
-    )
-    if (liveIdx !== -1 && pathParts[liveIdx + 1]) {
-      const candidate = pathParts[liveIdx + 1]
-      if (YOUTUBE_ID_RE.test(candidate)) return candidate
-    }
-  }
-
-  return null
-}
-
-function parseTwitch(url: URL): ParsedStreamInput | null {
-  const parts = url.pathname.split('/').filter(Boolean)
-  if (parts.length === 0) return null
-  const channel = parts[0].toLowerCase()
-  if (['videos', 'directory', 'p', 'downloads', 'jobs', 'settings'].includes(channel)) {
-    return null
-  }
-  if (!CHANNEL_NAME_RE.test(channel)) return null
-  return {
-    platform: 'twitch',
-    channelOrId: channel,
-    originalUrl: `https://www.twitch.tv/${channel}`,
-    label: channel,
-  }
-}
-
-function parseKick(url: URL): ParsedStreamInput | null {
-  const parts = url.pathname.split('/').filter(Boolean)
-  if (parts.length === 0) return null
-  const channel = parts[0].toLowerCase()
-  if (['categories', 'browse', 'search'].includes(channel)) return null
-  if (!CHANNEL_NAME_RE.test(channel)) return null
-  return {
-    platform: 'kick',
-    channelOrId: channel,
-    originalUrl: `https://kick.com/${channel}`,
-    label: channel,
-  }
-}
-
-function parseYouTube(url: URL): ParsedStreamInput | null {
-  const id = extractYouTubeId(url)
-  if (!id) return null
-  return {
-    platform: 'youtube',
-    channelOrId: id,
-    originalUrl: `https://www.youtube.com/watch?v=${id}`,
-    label: id,
-  }
-}
-
-/**
- * Attempts to parse arbitrary user input (a URL or a bare channel name/id)
- * into a normalized stream descriptor. Throws StreamParseError with a
- * human-readable message when the input cannot be resolved.
- */
-export function parseStreamInput(raw: string): ParsedStreamInput {
-  const trimmed = raw.trim()
-  if (!trimmed) {
-    throw new StreamParseError('Please enter a URL or channel name.')
-  }
-
-  const looksLikeUrl = /^(https?:\/\/)|(^[\w-]+\.[a-z]{2,})/i.test(trimmed) || trimmed.includes('/')
-  const url = looksLikeUrl ? tryParseUrl(trimmed) : null
-
-  if (url) {
-    const host = url.hostname.toLowerCase()
-    if (hostMatches(host, TWITCH_HOSTS)) {
-      const result = parseTwitch(url)
-      if (!result) {
-        throw new StreamParseError(
-          'This looks like a Twitch URL, but no channel name could be found in it.',
-        )
-      }
-      return result
-    }
-    if (hostMatches(host, KICK_HOSTS)) {
-      const result = parseKick(url)
-      if (!result) {
-        throw new StreamParseError(
-          'This looks like a Kick URL, but no channel name could be found in it.',
-        )
-      }
-      return result
-    }
-    if (hostMatches(host, YOUTUBE_HOSTS)) {
-      const result = parseYouTube(url)
-      if (!result) {
-        throw new StreamParseError(
-          'This looks like a YouTube URL, but no video ID could be found in it. Livestream and watch URLs are supported.',
-        )
-      }
-      return result
-    }
-    throw new StreamParseError(
-      `"${host}" is not a supported platform. Try a Twitch, Kick, or YouTube URL.`,
-    )
-  }
-
-  // Only treat a bare string as a YouTube ID when it is exactly 11
-  // characters AND actually looks like a YouTube ID (mixed case or
-  // contains '-'/'_'). Otherwise an 11-character, all-lowercase word like
-  // "somechannel" would be silently (and usually wrongly) treated as a
-  // YouTube video ID instead of a Twitch/Kick channel name.
-  if (LOOKS_LIKE_YOUTUBE_ID_RE.test(trimmed)) {
-    return {
-      platform: 'youtube',
-      channelOrId: trimmed,
-      originalUrl: `https://www.youtube.com/watch?v=${trimmed}`,
-      label: trimmed,
-    }
-  }
-
-  if (CHANNEL_NAME_RE.test(trimmed)) {
-    throw new StreamParseError(
-      `"${trimmed}" could be a Twitch or Kick channel name. Please paste the full URL (e.g. twitch.tv/${trimmed} or kick.com/${trimmed}) so we can tell which platform you mean.`,
-    )
-  }
-
-  throw new StreamParseError(
-    `Could not recognize "${trimmed}" as a Twitch, Kick, or YouTube stream.`,
-  )
-}
-
-/** Same as parseStreamInput but with an explicit platform hint for bare
- * channel names, used by the "Add stream" dialog's platform selector. */
-export function parseStreamInputWithHint(
-  raw: string,
-  hint: Platform | null,
-): ParsedStreamInput {
-  const trimmed = raw.trim()
-  if (hint && CHANNEL_NAME_RE.test(trimmed) && !/^https?:\/\//i.test(trimmed)) {
-    if (hint === 'twitch') {
-      return {
-        platform: 'twitch',
-        channelOrId: trimmed.toLowerCase(),
-        originalUrl: `https://www.twitch.tv/${trimmed.toLowerCase()}`,
-        label: trimmed.toLowerCase(),
-      }
-    }
-    if (hint === 'kick') {
-      return {
-        platform: 'kick',
-        channelOrId: trimmed.toLowerCase(),
-        originalUrl: `https://kick.com/${trimmed.toLowerCase()}`,
-        label: trimmed.toLowerCase(),
-      }
-    }
-  }
-  return parseStreamInput(raw)
-}
-
-/** Splits a multi-line / comma / whitespace separated blob of pasted
- * text into individual candidate stream identifiers. */
-export function splitMultipleInputs(blob: string): string[] {
-  return blob
-    .split(/[\n\r,]+/)
-    .map((s) => s.trim())
-    .filter(Boolean)
-}
-
-export function platformLabel(platform: Platform): string {
+export function getStreamEmbedUrl(platform: StreamPlatform, channel: string): string {
   switch (platform) {
     case 'twitch':
-      return 'Twitch'
-    case 'kick':
-      return 'Kick'
+      return `https://player.twitch.tv/?channel=${channel}&parent=${window.location.hostname}&autoplay=false&muted=true`;
     case 'youtube':
-      return 'YouTube'
+      return `https://www.youtube.com/embed/${channel}?autoplay=0&mute=1`;
+    case 'kick':
+      return `https://player.kick.com/${channel}?autoplay=false&muted=true`;
+    default:
+      return '';
   }
+}
+
+export async function checkStreamStatus(
+  platform: StreamPlatform,
+  channel: string
+): Promise<StreamStatus> {
+  try {
+    switch (platform) {
+      case 'twitch': {
+        const response = await fetch(`https://api.twitch.tv/helix/streams?user_login=${channel}`, {
+          headers: {
+            'Client-ID': 'kimne78kx3ncx6brgo4mv6wki5h1ko',
+          },
+        });
+        const data = await response.json();
+        return data.data && data.data.length > 0 ? 'live' : 'offline';
+      }
+      case 'youtube': {
+        // YouTube requires API key, so we'll assume live for now
+        // In production, use YouTube Data API
+        return 'live';
+      }
+      case 'kick': {
+        const response = await fetch(`https://kick.com/api/v2/channels/${channel}`);
+        const data = await response.json();
+        return data && data.livestream ? 'live' : 'offline';
+      }
+      default:
+        return 'offline';
+    }
+  } catch (error) {
+    console.error(`Error checking ${platform} stream status:`, error);
+    return 'offline';
+  }
+}
+
+/**
+ * Filter out offline streams from the stream list
+ * @param streams Array of streams to filter
+ * @returns Array of streams with only live streams
+ */
+export function filterOfflineStreams(streams: Stream[]): Stream[] {
+  return streams.filter(stream => stream.status !== 'offline');
+}
+
+export function createStreamFromData(data: StreamData): Stream {
+  return {
+    id: data.id,
+    platform: data.platform,
+    channel: data.channel,
+    title: data.title || '',
+    thumbnail: data.thumbnail || '',
+    viewers: data.viewers || 0,
+    isLive: data.isLive ?? true,
+    url: data.url || '',
+    status: data.isLive ? 'live' : 'offline',
+  };
 }
