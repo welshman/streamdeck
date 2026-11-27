@@ -17,6 +17,8 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Focus,
+  Link2,
+  Check,
 } from 'lucide-react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -63,6 +65,7 @@ export function StreamCard({
   const [reloadKey, setReloadKey] = useState(0)
   const [editingLabel, setEditingLabel] = useState(false)
   const [labelDraft, setLabelDraft] = useState(stream.label)
+  const [copied, setCopied] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -97,6 +100,16 @@ export function StreamCard({
       iframe.requestPictureInPicture?.().catch(() => {})
     }
   }, [])
+
+  const handleCopyLink = useCallback(() => {
+    navigator.clipboard
+      ?.writeText(stream.originalUrl)
+      .then(() => {
+        setCopied(true)
+        window.setTimeout(() => setCopied(false), 1500)
+      })
+      .catch(() => {})
+  }, [stream.originalUrl])
 
   const commitLabel = () => {
     onUpdateLabel(stream.id, labelDraft)
@@ -243,6 +256,16 @@ export function StreamCard({
             <Tooltip content="Reload player">
               <IconButton label={`Reload ${stream.label}`} onClick={() => setReloadKey((k) => k + 1)}>
                 <RefreshCw className="h-4 w-4" aria-hidden="true" />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip content={copied ? 'Link copied' : 'Copy stream link'}>
+              <IconButton label={`Copy link to ${stream.label}`} onClick={handleCopyLink}>
+                {copied ? (
+                  <Check className="h-4 w-4 text-green-500" aria-hidden="true" />
+                ) : (
+                  <Link2 className="h-4 w-4" aria-hidden="true" />
+                )}
               </IconButton>
             </Tooltip>
 
