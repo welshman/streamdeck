@@ -31,9 +31,14 @@ describe('buildTwitchChatUrl', () => {
 })
 
 describe('buildKickEmbedUrl', () => {
-  it('builds a player.kick.com URL with autoplay', () => {
+  it('builds a player.kick.com URL with autoplay and muted=true', () => {
     const url = buildKickEmbedUrl({ channel: 'xqc', muted: true })
-    expect(url).toBe('https://player.kick.com/xqc?autoplay=true')
+    expect(url).toBe('https://player.kick.com/xqc?autoplay=true&muted=true')
+  })
+
+  it('reflects unmuted state with muted=false', () => {
+    const url = buildKickEmbedUrl({ channel: 'xqc', muted: false })
+    expect(url).toBe('https://player.kick.com/xqc?autoplay=true&muted=false')
   })
 })
 

@@ -40,18 +40,20 @@ export function buildTwitchChatUrl(channel: string, parent?: string): string {
 }
 
 /**
- * Kick's officially documented embed path is /<channel>/embed?autoplay=...
- * There is currently no officially documented chat-only iframe embed for
- * third-party sites, so we surface a "open chat" fallback instead of
- * assuming one exists.
+ * Kick's player (player.kick.com/<channel>) only honors the `autoplay`
+ * and `muted` URL parameters and ignores postMessage, so muting or
+ * unmuting a Kick stream means changing `muted` in the URL, which
+ * reloads the iframe. There is currently no officially documented
+ * chat-only iframe embed for third-party sites, so we surface a
+ * "open chat" fallback instead of assuming one exists.
  */
 export interface KickEmbedOptions {
   channel: string
   muted: boolean
 }
 
-export function buildKickEmbedUrl({ channel }: KickEmbedOptions): string {
-  const params = new URLSearchParams({ autoplay: 'true' })
+export function buildKickEmbedUrl({ channel, muted }: KickEmbedOptions): string {
+  const params = new URLSearchParams({ autoplay: 'true', muted: String(muted) })
   return `https://player.kick.com/${channel}?${params.toString()}`
 }
 
