@@ -4,8 +4,8 @@
  * for opening the stream in a new tab.
  *
  * Twitch and YouTube both document public iframe embeds. Kick documents
- * an embeddable player but (as of writing) not a chat embed, so its chat
- * falls back to the channel page / popout chat URL.
+ * an embeddable player; its chat uses the popout chat URL, which may or
+ * may not be allowed in a third-party iframe (fallback link is shown).
  */
 import { Platform } from '@/types/stream'
 
@@ -16,12 +16,19 @@ export function chatSupported(platform: Platform): boolean {
   return CHAT_SUPPORTED.includes(platform)
 }
 
-export function buildTwitchEmbedUrl({ channel, muted }: { channel: string; muted: boolean }): string {
-  const parent = getTwitchParentHost()
+export function buildTwitchEmbedUrl({
+  channel,
+  muted,
+  parent,
+}: {
+  channel: string
+  muted: boolean
+  parent?: string
+}): string {
   const params = new URLSearchParams({
     channel,
-    parent,
-    autoplay: 'false',
+    parent: parent ?? getTwitchParentHost(),
+    autoplay: 'true',
     muted: String(muted),
   })
   return `https://player.twitch.tv/?${params.toString()}`
@@ -30,26 +37,35 @@ export function buildTwitchEmbedUrl({ channel, muted }: { channel: string; muted
 export function buildKickEmbedUrl({ channel, muted }: { channel: string; muted: boolean }): string {
   // Kick's player honors autoplay/muted as URL params; it does not support
   // postMessage-based control, so mute toggles require a reload.
-  const params = new URLSearchParams({
-    muted: String(muted),
-    autoplay: 'true',
-  })
-  return `https://player.kick.com/${encodeURIComponent(channel)}?${params.toString()}`
+  return `https://player.kick.com/${encodeURIComponent(channel)}?autoplay=true&muted=${muted}`
 }
 
-export function buildYouTubeEmbedUrl({ videoId, muted }: { videoId: string; muted: boolean }): string {
+export function buildYouTubeEmbedUrl({
+  videoId,
+  muted,
+  enableJsApi = false,
+  origin,
+}: {
+  videoId: string
+  muted: boolean
+  enableJsApi?: boolean
+  origin?: string
+}): string {
   const params = new URLSearchParams({
     autoplay: '1',
     mute: muted ? '1' : '0',
     rel: '0',
     modestbranding: '1',
   })
-  return `https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}?${params.toString()}`
+  if (enableJsApi) {
+    params.set('enablejsapi', '1')
+    if (origin) params.set('origin', origin)
+  }
+  return `https://www.youtube.com/embed/${encodeURIComponent(videoId)}?${params.toString()}`
 }
 
-export function buildTwitchChatUrl(channel: string): string {
-  const parent = getTwitchParentHost()
-  const params = new URLSearchParams({ parent, popout: '' })
+export function buildTwitchChatUrl(channel: string, parent?: string): string {
+  const params = new URLSearchParams({ parent: parent ?? getTwitchParentHost() })
   return `https://www.twitch.tv/embed/${encodeURIComponent(channel)}/chat?${params.toString()}`
 }
 
@@ -58,12 +74,6 @@ export function buildTwitchChatUrl(channel: string): string {
  * Kick's frame headers, so the UI keeps an "open in new tab" fallback. */
 export function buildKickChatUrl(channel: string): string {
   return `https://kick.com/popout/${encodeURIComponent(channel)}/chat`
-}
-
-export function buildYouTubeChatUrl(): string {
-  // YouTube live chat cannot be embedded reliably without an API key,
-  // so we always fall back to opening the stream page.
-  return ''
 }
 
 export function originalStreamUrl(platform: Platform, channelOrId: string): string {

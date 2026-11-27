@@ -205,11 +205,12 @@ export interface ImportResult {
 }
 
 /** Parses and validates JSON text produced by exportStateToJson (or a
- * hand-edited equivalent) before it is applied to the app. */
+ * hand-edited equivalent) before it is applied to the app. Arrays are
+ * rejected: a valid configuration is always a JSON object. */
 export function importStateFromJson(json: string): ImportResult {
   try {
     const parsed = JSON.parse(json)
-    if (typeof parsed !== 'object' || parsed === null) {
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
       return { ok: false, error: 'The provided file is not a valid StreamDeck configuration.' }
     }
     const migrated = migrate(parsed)

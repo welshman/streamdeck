@@ -1,26 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useDashboardStore } from './useDashboardStore'
-import { StreamEntry, ParsedStreamInput, Scene } from '@/types/stream'
-
-function makeStream(id: string, order: number, overrides: Partial<StreamEntry> = {}): StreamEntry {
-  return {
-    id,
-    platform: 'twitch',
-    channelOrId: id,
-    originalUrl: `https://twitch.tv/${id}`,
-    label: id,
-    isHidden: false,
-    isFavorite: false,
-    isMuted: true,
-    showChat: false,
-    chatPosition: 'side',
-    controlsCollapsed: true,
-    order,
-    addedAt: 0,
-    ...overrides,
-  }
-}
+import { ParsedStreamInput, Scene } from '@/types/stream'
 
 function makeParsed(id: string): ParsedStreamInput {
   return {
@@ -70,7 +51,11 @@ describe('useDashboardStore', () => {
     const { result } = renderHook(() => useDashboardStore())
     act(() => {
       result.current.addStream(makeParsed('a'))
+    })
+    act(() => {
       result.current.addStream(makeParsed('b'))
+    })
+    act(() => {
       result.current.addStream(makeParsed('c'))
     })
     const ids = result.current.visibleStreams.map((s) => s.id)
@@ -87,7 +72,11 @@ describe('useDashboardStore', () => {
     const { result } = renderHook(() => useDashboardStore())
     act(() => {
       result.current.addStream(makeParsed('a'))
+    })
+    act(() => {
       result.current.addStream(makeParsed('b'))
+    })
+    act(() => {
       result.current.addStream(makeParsed('c'))
     })
     const removed = result.current.visibleStreams[1]
@@ -124,6 +113,8 @@ describe('useDashboardStore', () => {
     const { result } = renderHook(() => useDashboardStore())
     act(() => {
       result.current.addStream(makeParsed('a'))
+    })
+    act(() => {
       result.current.addStream(makeParsed('b'))
     })
     const focusedId = result.current.visibleStreams[1].id
@@ -139,7 +130,8 @@ describe('useDashboardStore', () => {
     expect(result.current.scenes[0].name).toBe('My scene')
     expect(result.current.scenes[0].featuredIndex).toBe(1)
 
-    // Remove both streams, then load the scene: streams should come back (reused, not duplicated).
+    // Remove both streams, then load the scene: streams come back as new
+    // entries (the originals were deleted), and focus is restored by index.
     act(() => {
       result.current.visibleStreams.forEach((s) => result.current.removeStream(s.id))
     })
@@ -148,14 +140,18 @@ describe('useDashboardStore', () => {
       result.current.applyScene(result.current.scenes[0])
     })
     expect(result.current.visibleStreams.map((s) => s.channelOrId)).toEqual(['a', 'b'])
-    expect(result.current.settings.featuredStreamId).toBe(focusedId)
+    expect(result.current.settings.featuredStreamId).toBe(result.current.visibleStreams[1].id)
   })
 
   it('applying a scene moves streams not in the scene to Hidden, not deleted', () => {
     const { result } = renderHook(() => useDashboardStore())
     act(() => {
       result.current.addStream(makeParsed('a'))
+    })
+    act(() => {
       result.current.addStream(makeParsed('b'))
+    })
+    act(() => {
       result.current.addStream(makeParsed('c'))
     })
     const scene = makeScene('s1', 'Only a', ['a'])
@@ -202,6 +198,8 @@ describe('useDashboardStore', () => {
     const { result } = renderHook(() => useDashboardStore())
     act(() => {
       result.current.addStream(makeParsed('a'))
+    })
+    act(() => {
       result.current.addStream(makeParsed('b'))
     })
     const a = result.current.visibleStreams[0]
@@ -217,6 +215,8 @@ describe('useDashboardStore', () => {
     const { result } = renderHook(() => useDashboardStore())
     act(() => {
       result.current.addStream(makeParsed('a'))
+    })
+    act(() => {
       result.current.saveScene('Round trip')
     })
     let json = ''
