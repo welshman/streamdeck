@@ -12,6 +12,8 @@ import {
   Moon,
   Laptop,
   Settings,
+  PanelLeftClose,
+  PanelLeftOpen,
   PanelRightClose,
   PanelRightOpen,
   Keyboard,
@@ -30,6 +32,7 @@ interface NavbarProps {
   theme: ThemeMode
   onThemeChange: (theme: ThemeMode) => void
   sidebarOpen: boolean
+  sidebarSide: 'left' | 'right'
   onToggleSidebar: () => void
   onAddStream: () => void
   onOpenSettings: () => void
@@ -61,6 +64,7 @@ export function Navbar({
   theme,
   onThemeChange,
   sidebarOpen,
+  sidebarSide,
   onToggleSidebar,
   onAddStream,
   onOpenSettings,
@@ -73,9 +77,32 @@ export function Navbar({
   const [layoutMenuOpen, setLayoutMenuOpen] = useState(false)
   const [themeMenuOpen, setThemeMenuOpen] = useState(false)
 
+  const SidebarIcon =
+    sidebarSide === 'left'
+      ? sidebarOpen
+        ? PanelLeftClose
+        : PanelLeftOpen
+      : sidebarOpen
+        ? PanelRightClose
+        : PanelRightOpen
+
+  // The toggle sits on the same side of the navbar as the sidebar itself.
+  const sidebarToggle = (
+    <Tooltip content={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}>
+      <IconButton
+        label={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
+        onClick={onToggleSidebar}
+      >
+        <SidebarIcon className="h-[18px] w-[18px]" aria-hidden="true" />
+      </IconButton>
+    </Tooltip>
+  )
+
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
       <div className="flex h-14 items-center gap-2 px-3 sm:px-4">
+        {sidebarSide === 'left' && sidebarToggle}
+
         <div className="flex items-center gap-2 pr-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-white">
             <MonitorPlay className="h-[18px] w-[18px]" aria-hidden="true" />
@@ -211,18 +238,7 @@ export function Navbar({
             </IconButton>
           </Tooltip>
 
-          <Tooltip content={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}>
-            <IconButton
-              label={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
-              onClick={onToggleSidebar}
-            >
-              {sidebarOpen ? (
-                <PanelRightClose className="h-[18px] w-[18px]" aria-hidden="true" />
-              ) : (
-                <PanelRightOpen className="h-[18px] w-[18px]" aria-hidden="true" />
-              )}
-            </IconButton>
-          </Tooltip>
+          {sidebarSide === 'right' && sidebarToggle}
         </div>
       </div>
     </header>

@@ -153,6 +153,15 @@ function App() {
     store.setTheme(next)
   }, [store])
 
+  // Choosing a sidebar side also opens the sidebar so the change is visible.
+  const handleSetSidebarSide = useCallback(
+    (side: 'left' | 'right') => {
+      store.setSidebarSide(side)
+      store.setSidebarOpen(true)
+    },
+    [store],
+  )
+
   // Focusing a stream (via setFeatured) also moves the audio to it.
   const focusStreamAt = (index: number) => {
     const target = store.visibleStreams[index]
@@ -199,6 +208,7 @@ function App() {
           theme={store.settings.theme}
           onThemeChange={store.setTheme}
           sidebarOpen={store.settings.sidebarOpen}
+          sidebarSide={store.settings.sidebarSide}
           onToggleSidebar={() => store.setSidebarOpen(!store.settings.sidebarOpen)}
           onAddStream={() => setAddModalOpen(true)}
           onOpenSettings={() => setSettingsOpen(true)}
@@ -307,7 +317,7 @@ function App() {
         onClose={() => setSettingsOpen(false)}
         settings={store.settings}
         onSetDensity={store.setDensity}
-        onSetSidebarSide={store.setSidebarSide}
+        onSetSidebarSide={handleSetSidebarSide}
         onExport={store.exportConfig}
         onImport={handleImport}
         onResetLayout={store.resetLayout}
