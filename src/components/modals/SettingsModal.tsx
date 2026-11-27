@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Download, Upload, Copy, Check, ShieldCheck } from 'lucide-react'
+import { Download, Upload, Copy, Check, ShieldCheck, RefreshCw } from 'lucide-react'
 import { Modal } from '@/components/ui/Modal'
 import { DashboardSettings, Density } from '@/types/stream'
 
@@ -9,6 +9,8 @@ interface SettingsModalProps {
   settings: DashboardSettings
   onSetDensity: (density: Density) => void
   onSetSidebarSide: (side: 'left' | 'right') => void
+  onSetNewStreamsCollapsed: (value: boolean) => void
+  onReloadAll: () => void
   onExport: () => string
   onImport: (json: string) => { ok: boolean; error?: string }
   onResetLayout: () => void
@@ -21,6 +23,8 @@ export function SettingsModal({
   settings,
   onSetDensity,
   onSetSidebarSide,
+  onSetNewStreamsCollapsed,
+  onReloadAll,
   onExport,
   onImport,
   onResetLayout,
@@ -125,6 +129,32 @@ export function SettingsModal({
                 {side}
               </button>
             ))}
+          </div>
+        </section>
+
+        <section>
+          <h3 className="mb-1 text-sm font-semibold text-text">Streams</h3>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => onSetNewStreamsCollapsed(!settings.newStreamsCollapsed)}
+              aria-pressed={settings.newStreamsCollapsed}
+              className={`rounded-lg border px-3 py-1.5 text-sm ${
+                settings.newStreamsCollapsed
+                  ? 'border-accent bg-accent/10 text-accent'
+                  : 'border-border text-text-muted hover:text-text'
+              }`}
+            >
+              New streams start with controls collapsed
+            </button>
+            <button
+              type="button"
+              onClick={onReloadAll}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm text-text hover:bg-surface"
+            >
+              <RefreshCw className="h-4 w-4" aria-hidden="true" />
+              Reload all players
+            </button>
           </div>
         </section>
 

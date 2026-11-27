@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { RefreshCw, AlertTriangle } from 'lucide-react'
 
 interface PlayerFrameProps {
@@ -7,24 +7,40 @@ interface PlayerFrameProps {
   allow?: string
 }
 
-const LOAD_TIMEOUT_MS = 20000
+const LOAD_TIMEOUT_MS = 15000
+const MAX_AUTO_RETRIES = 1
 
 /**
  * Shared iframe wrapper providing consistent loading skeleton and error
  * fallback UI across Twitch/Kick/YouTube embeds. Iframes cannot reliably
  * report *why* they failed (cross-origin), so we treat a slow/failed
  * load plus a timeout as a best-effort "may be unavailable" signal
- * rather than a guaranteed error state. The timer restarts whenever the
- * embed URL changes (e.g. a Kick mute/unmute reload) or on manual reload.
+ * rather than a guaranteed error state. A player that stalls is reloaded
+ * once automatically before the warning is shown. The timer restarts
+ * whenever the embed URL changes (e.g. a Kick mute/unmute reload) or on
+ * manual reload.
  */
 export function PlayerFrame({ title, src, allow }: PlayerFrameProps) {
   const [status, setStatus] = useState<'loading' | 'loaded' | 'timeout'>('loading')
   const [reloadKey, setReloadKey] = useState(0)
+  const autoRetries = useRef(0)
+  const loaded = useRef(false)
 
   useEffect(() => {
+    autoRetries.current = 0
+  }, [src])
+
+  useEffect(() => {
+    loaded.current = false
     setStatus('loading')
     const timer = window.setTimeout(() => {
-      setStatus((s) => (s === 'loading' ? 'timeout' : s))
+      if (loaded.current) return
+      if (autoRetries.current < MAX_AUTO_RETRIES) {
+        autoRetries.current += 1
+        setReloadKey((k) => k + 1)
+      } else {
+        setStatus('timeout')
+      }
     }, LOAD_TIMEOUT_MS)
     return () => window.clearTimeout(timer)
   }, [src, reloadKey])
@@ -48,7 +64,10 @@ export function PlayerFrame({ title, src, allow }: PlayerFrameProps) {
           </p>
           <button
             type="button"
-            onClick={() => setReloadKey((k) => k + 1)}
+            onClick={() => {
+              autoRetries.current = 0
+              setReloadKey((k) => k + 1)
+            }}
             className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface-raised px-3 py-1.5 text-sm font-medium text-text hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
           >
             <RefreshCw className="h-4 w-4" aria-hidden="true" />
@@ -63,7 +82,10 @@ export function PlayerFrame({ title, src, allow }: PlayerFrameProps) {
         className="h-full w-full border-0"
         allow={allow ?? 'autoplay; fullscreen; picture-in-picture; encrypted-media'}
         allowFullScreen
-        onLoad={() => setStatus('loaded')}
+        onLoad={() => {
+          loaded.current = true
+          setStatus('loaded')
+        }}
       />
     </div>
   )

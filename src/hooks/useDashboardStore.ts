@@ -131,6 +131,8 @@ export function useDashboardStore() {
     setToasts((t) => t.filter((toast) => toast.id !== id))
   }, [])
 
+  const newStreamsCollapsed = settings.newStreamsCollapsed
+
   const addStream = useCallback(
     (parsed: ParsedStreamInput, options?: { label?: string }) => {
       let didAdd = false
@@ -154,7 +156,7 @@ export function useDashboardStore() {
           isMuted: true,
           showChat: false,
           chatPosition: 'side',
-          controlsCollapsed: true,
+          controlsCollapsed: newStreamsCollapsed,
           order: maxOrder + 1,
           addedAt: Date.now(),
         }
@@ -170,7 +172,7 @@ export function useDashboardStore() {
       )
       return didAdd
     },
-    [],
+    [newStreamsCollapsed],
   )
 
   const removeStream = useCallback((id: string) => {
@@ -260,6 +262,14 @@ export function useDashboardStore() {
 
   const setSidebarSide = useCallback((side: DashboardSettings['sidebarSide']) => {
     setSettings((prev) => ({ ...prev, sidebarSide: side }))
+  }, [])
+
+  const setDockChat = useCallback((dockChat: boolean) => {
+    setSettings((prev) => ({ ...prev, dockChat }))
+  }, [])
+
+  const setNewStreamsCollapsed = useCallback((value: boolean) => {
+    setSettings((prev) => ({ ...prev, newStreamsCollapsed: value }))
   }, [])
 
   // `orderedIds` is the desired order of the visible streams. We must
@@ -418,6 +428,8 @@ export function useDashboardStore() {
     setDensity,
     setSidebarOpen,
     setSidebarSide,
+    setDockChat,
+    setNewStreamsCollapsed,
     reorderStreams,
     resetLayout,
     removeRecent,

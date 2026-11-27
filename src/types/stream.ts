@@ -88,6 +88,10 @@ export interface DashboardSettings {
   featuredStreamId: string | null
   sidebarOpen: boolean
   sidebarSide: 'left' | 'right'
+  /** New streams start with their card toolbar collapsed. */
+  newStreamsCollapsed: boolean
+  /** In Single focus, show a chat column beside the focused stream. */
+  dockChat: boolean
   chatsGloballyHidden: boolean
   hideOfflineStreams: boolean
   reducedMotionOverride: boolean | null
@@ -111,6 +115,8 @@ export const DEFAULT_SETTINGS: DashboardSettings = {
   featuredStreamId: null,
   sidebarOpen: true,
   sidebarSide: 'right',
+  newStreamsCollapsed: true,
+  dockChat: false,
   chatsGloballyHidden: false,
   hideOfflineStreams: false,
   reducedMotionOverride: null,
