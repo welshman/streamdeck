@@ -11,6 +11,8 @@ import {
   ParsedStreamInput,
   PersistedState,
   RecentStream,
+  Scene,
+  SceneStream,
   StreamEntry,
 } from '@/types/stream'
 import { generateId } from '@/utils/id'
@@ -23,6 +25,8 @@ import {
   storageAvailable,
 } from '@/utils/storage'
 import { decodeShareHash } from '@/utils/shareLink'
+
+const MAX_SCENES = 20
 
 export interface ToastAction {
   label: string
@@ -43,11 +47,31 @@ function reorder(streams: StreamEntry[]): StreamEntry[] {
     .map((s, idx) => ({ ...s, order: idx }))
 }
 
+/** A fresh, visible, muted, collapsed stream entry (same defaults as addStream). */
+function makeEntry(source: SceneStream, order: number): StreamEntry {
+  return {
+    id: generateId(),
+    platform: source.platform,
+    channelOrId: source.channelOrId,
+    originalUrl: source.originalUrl,
+    label: source.label,
+    isHidden: false,
+    isFavorite: false,
+    isMuted: true,
+    showChat: false,
+    chatPosition: 'side',
+    controlsCollapsed: true,
+    order,
+    addedAt: Date.now(),
+  }
+}
+
 export function useDashboardStore() {
   const initial = useMemo(() => loadState(), [])
   const [streams, setStreams] = useState<StreamEntry[]>(initial.value.streams)
   const [settings, setSettings] = useState<DashboardSettings>(initial.value.settings)
   const [recents, setRecents] = useState<RecentStream[]>(initial.value.recents)
+  const [scenes, setScenes] = useState<Scene[]>(initial.value.scenes ?? [])
   const [toasts, setToasts] = useState<ToastMessage[]>([])
   const hydratedFromShare = useRef(false)
   const saveWarned = useRef(false)
@@ -93,7 +117,7 @@ export function useDashboardStore() {
   }, [pushToast])
 
   useEffect(() => {
-    const state: PersistedState = { version: 1, streams, settings, recents }
+    const state: PersistedState = { version: 1, streams, settings, recents, scenes }
     const result = saveState(state)
     if (result.ok) {
       saveWarned.current = false
@@ -101,7 +125,7 @@ export function useDashboardStore() {
       saveWarned.current = true
       pushToast(result.error, 'error')
     }
-  }, [streams, settings, recents, pushToast])
+  }, [streams, settings, recents, scenes, pushToast])
 
   const dismissToast = useCallback((id: string) => {
     setToasts((t) => t.filter((toast) => toast.id !== id))
@@ -272,9 +296,78 @@ export function useDashboardStore() {
     setRecents([])
   }, [])
 
+  const visibleStreams = useMemo(
+    () => reorder(streams.filter((s) => !s.isHidden)),
+    [streams],
+  )
+  const hiddenStreams = useMemo(() => streams.filter((s) => s.isHidden), [streams])
+
+  // Saves the current visible streams, layout and focused stream under a name.
+  // Saving with an existing name (case-insensitive) replaces that scene.
+  const saveScene = useCallback(
+    (name: string): boolean => {
+      const trimmed = name.trim()
+      if (!trimmed || visibleStreams.length === 0) return false
+      const featuredIdx = visibleStreams.findIndex((s) => s.id === settings.featuredStreamId)
+      const scene: Scene = {
+        id: generateId('scene'),
+        name: trimmed,
+        streams: visibleStreams.map((s) => ({
+          platform: s.platform,
+          channelOrId: s.channelOrId,
+          originalUrl: s.originalUrl,
+          label: s.label,
+        })),
+        layout: settings.layout,
+        featuredIndex: featuredIdx === -1 ? null : featuredIdx,
+        savedAt: Date.now(),
+      }
+      setScenes((prev) =>
+        [scene, ...prev.filter((s) => s.name.toLowerCase() !== trimmed.toLowerCase())].slice(0, MAX_SCENES),
+      )
+      return true
+    },
+    [visibleStreams, settings.featuredStreamId, settings.layout],
+  )
+
+  // Loads a scene. Streams that are already saved (visible or hidden) are reused so
+  // favourites and renames survive; anything not in the scene is moved to Hidden, never
+  // deleted. Returns how many previously visible streams were moved to Hidden.
+  const applyScene = useCallback(
+    (scene: Scene): number => {
+      const used = new Set<string>()
+      const next: StreamEntry[] = scene.streams.map((ss, idx) => {
+        const match = (s: StreamEntry) =>
+          !used.has(s.id) && s.platform === ss.platform && s.channelOrId === ss.channelOrId
+        const existing = streams.find((s) => !s.isHidden && match(s)) ?? streams.find(match)
+        if (existing) {
+          used.add(existing.id)
+          return { ...existing, isHidden: false, order: idx }
+        }
+        return makeEntry(ss, idx)
+      })
+      const leftover = streams.filter((s) => !used.has(s.id))
+      const newlyHidden = leftover.filter((s) => !s.isHidden).length
+      const rest = leftover.map((s, i) => ({ ...s, isHidden: true, order: next.length + i }))
+      const featuredId =
+        scene.featuredIndex !== null ? (next[scene.featuredIndex]?.id ?? null) : null
+      const merged = [...next, ...rest].map((s) =>
+        featuredId ? { ...s, isMuted: s.id !== featuredId } : s,
+      )
+      setStreams(merged)
+      setSettings((prev) => ({ ...prev, layout: scene.layout, featuredStreamId: featuredId }))
+      return newlyHidden
+    },
+    [streams],
+  )
+
+  const deleteScene = useCallback((id: string) => {
+    setScenes((prev) => prev.filter((s) => s.id !== id))
+  }, [])
+
   const exportConfig = useCallback((): string => {
-    return exportStateToJson({ version: 1, streams, settings, recents })
-  }, [streams, settings, recents])
+    return exportStateToJson({ version: 1, streams, settings, recents, scenes })
+  }, [streams, settings, recents, scenes])
 
   const importConfig = useCallback(
     (json: string): { ok: boolean; error?: string } => {
@@ -285,6 +378,7 @@ export function useDashboardStore() {
       setStreams(reorder(result.value.streams))
       setSettings(result.value.settings)
       setRecents(result.value.recents)
+      setScenes(result.value.scenes ?? [])
       return { ok: true }
     },
     [],
@@ -295,18 +389,13 @@ export function useDashboardStore() {
     setSettings((prev) => ({ ...prev, featuredStreamId: null }))
   }, [])
 
-  const visibleStreams = useMemo(
-    () => reorder(streams.filter((s) => !s.isHidden)),
-    [streams],
-  )
-  const hiddenStreams = useMemo(() => streams.filter((s) => s.isHidden), [streams])
-
   return {
     streams,
     visibleStreams,
     hiddenStreams,
     settings,
     recents,
+    scenes,
     toasts,
     storageAvailable,
     pushToast,
@@ -333,6 +422,9 @@ export function useDashboardStore() {
     resetLayout,
     removeRecent,
     clearRecents,
+    saveScene,
+    applyScene,
+    deleteScene,
     exportConfig,
     importConfig,
     clearAllStreams,

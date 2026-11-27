@@ -1,6 +1,6 @@
-import { Eye, Trash2, Star, Clock, Search, X } from 'lucide-react'
-import { useMemo, useState } from 'react'
-import { StreamEntry, RecentStream } from '@/types/stream'
+import { Eye, Trash2, Star, Clock, Search, X, Layers } from 'lucide-react'
+import { FormEvent, useMemo, useState } from 'react'
+import { LayoutMode, Scene, StreamEntry, RecentStream } from '@/types/stream'
 import { PlatformBadge } from '@/components/ui/PlatformBadge'
 import { IconButton } from '@/components/ui/IconButton'
 import { Tooltip } from '@/components/ui/Tooltip'
@@ -12,15 +12,31 @@ interface SidebarProps {
   hiddenStreams: StreamEntry[]
   favoriteStreams: StreamEntry[]
   recents: RecentStream[]
+  scenes: Scene[]
+  activeCount: number
   onUnhide: (id: string) => void
   onDelete: (stream: StreamEntry) => void
   onToggleFavorite: (id: string) => void
   onAddFromRecent: (recent: RecentStream) => void
   onRemoveRecent: (recent: RecentStream) => void
   onClearRecents: () => void
+  onSaveScene: (name: string) => boolean
+  onApplyScene: (scene: Scene) => void
+  onDeleteScene: (scene: Scene) => void
 }
 
-type Tab = 'hidden' | 'favorites' | 'recent'
+type Tab = 'hidden' | 'favorites' | 'recent' | 'scenes'
+
+const TABS: Tab[] = ['hidden', 'favorites', 'recent', 'scenes']
+
+const LAYOUT_NAMES: Record<LayoutMode, string> = {
+  grid: 'Auto grid',
+  'columns-2': '2 columns',
+  'columns-3': '3 columns',
+  'columns-4': '4 columns',
+  pip: 'Picture-in-picture',
+  focus: 'Single focus',
+}
 
 export function Sidebar({
   open,
@@ -28,15 +44,21 @@ export function Sidebar({
   hiddenStreams,
   favoriteStreams,
   recents,
+  scenes,
+  activeCount,
   onUnhide,
   onDelete,
   onToggleFavorite,
   onAddFromRecent,
   onRemoveRecent,
   onClearRecents,
+  onSaveScene,
+  onApplyScene,
+  onDeleteScene,
 }: SidebarProps) {
   const [tab, setTab] = useState<Tab>('hidden')
   const [query, setQuery] = useState('')
+  const [sceneName, setSceneName] = useState('')
 
   const filteredHidden = useMemo(
     () => hiddenStreams.filter((s) => s.label.toLowerCase().includes(query.toLowerCase())),
@@ -44,6 +66,24 @@ export function Sidebar({
   )
 
   if (!open) return null
+
+  const tabLabel = (t: Tab): string => {
+    switch (t) {
+      case 'hidden':
+        return `Hidden ${hiddenStreams.length}`
+      case 'favorites':
+        return `Favorites ${favoriteStreams.length}`
+      case 'recent':
+        return `Recent ${recents.length}`
+      case 'scenes':
+        return `Scenes ${scenes.length}`
+    }
+  }
+
+  const handleSaveScene = (e: FormEvent) => {
+    e.preventDefault()
+    if (onSaveScene(sceneName)) setSceneName('')
+  }
 
   return (
     <aside
@@ -56,22 +96,18 @@ export function Sidebar({
       aria-label="Saved and hidden streams"
     >
       <div className="flex border-b border-border">
-        {(['hidden', 'favorites', 'recent'] as Tab[]).map((t) => (
+        {TABS.map((t) => (
           <button
             key={t}
             type="button"
             onClick={() => setTab(t)}
             className={cx(
-              'flex-1 px-2 py-2.5 text-xs font-semibold capitalize',
+              'flex-1 px-1 py-2.5 text-xs font-semibold capitalize',
               tab === t ? 'border-b-2 border-accent text-accent' : 'text-text-muted hover:text-text',
             )}
             aria-pressed={tab === t}
           >
-            {t === 'hidden'
-              ? `Hidden (${hiddenStreams.length})`
-              : t === 'favorites'
-                ? `Favorites (${favoriteStreams.length})`
-                : `Recent (${recents.length})`}
+            {tabLabel(t)}
           </button>
         ))}
       </div>
@@ -178,6 +214,64 @@ export function Sidebar({
               </ul>
             </>
           ))}
+
+        {tab === 'scenes' && (
+          <>
+            <form onSubmit={handleSaveScene} className="mb-2 flex gap-1.5">
+              <input
+                type="text"
+                value={sceneName}
+                onChange={(e) => setSceneName(e.target.value)}
+                maxLength={40}
+                placeholder="Name this setup"
+                aria-label="Scene name"
+                className="min-w-0 flex-1 rounded-md border border-border bg-surface px-2 py-1 text-sm text-text placeholder:text-text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+              />
+              <button
+                type="submit"
+                disabled={activeCount === 0 || sceneName.trim() === ''}
+                className="rounded-md bg-accent px-2.5 py-1 text-xs font-semibold text-white hover:bg-accent-hover disabled:opacity-40"
+              >
+                Save
+              </button>
+            </form>
+            <p className="mb-2 px-1 text-xs text-text-muted">
+              Saves your current streams, layout and focused stream. Loading a scene moves any other
+              streams to Hidden, so nothing is lost.
+            </p>
+            {scenes.length === 0 ? (
+              <p className="p-3 text-sm text-text-muted">
+                No scenes yet. Set up your streams, name the setup above, and save it.
+              </p>
+            ) : (
+              <ul className="flex flex-col gap-1.5">
+                {scenes.map((scene) => (
+                  <li key={scene.id} className="flex items-center gap-2 rounded-lg border border-border bg-surface p-2">
+                    <Layers className="h-3.5 w-3.5 shrink-0 text-text-muted" aria-hidden="true" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm text-text">{scene.name}</p>
+                      <p className="truncate text-xs text-text-muted">
+                        {scene.streams.length} stream{scene.streams.length === 1 ? '' : 's'} · {LAYOUT_NAMES[scene.layout]}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onApplyScene(scene)}
+                      className="rounded-md border border-border px-2 py-1 text-xs font-medium text-text hover:bg-surface-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+                    >
+                      Load
+                    </button>
+                    <Tooltip content="Delete scene">
+                      <IconButton label={`Delete scene ${scene.name}`} variant="danger" onClick={() => onDeleteScene(scene)}>
+                        <Trash2 className="h-4 w-4" aria-hidden="true" />
+                      </IconButton>
+                    </Tooltip>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        )}
       </div>
     </aside>
   )

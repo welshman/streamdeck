@@ -15,7 +15,7 @@ import { ShortcutsModal } from '@/components/modals/ShortcutsModal'
 import { ShareLinkModal } from '@/components/stream/ShareLinkModal'
 import { parseStreamInputWithHint } from '@/utils/streamParser'
 import { encodeShareLink } from '@/utils/shareLink'
-import { StreamEntry, Platform, RecentStream } from '@/types/stream'
+import { StreamEntry, Platform, RecentStream, Scene } from '@/types/stream'
 import { originalStreamUrl } from '@/utils/embed'
 import { cx } from '@/utils/classNames'
 import { Share2, Plus, Expand, Minimize2, WifiOff } from 'lucide-react'
@@ -172,6 +172,35 @@ function App() {
       const stream = store.streams.find((s) => s.id === id)
       store.unhideStream(id)
       if (stream) store.pushToast(`Unhid ${stream.label}.`, 'success')
+    },
+    [store],
+  )
+
+  const handleSaveScene = useCallback(
+    (name: string): boolean => {
+      const ok = store.saveScene(name)
+      if (ok) store.pushToast(`Saved scene "${name.trim()}".`, 'success')
+      return ok
+    },
+    [store],
+  )
+
+  const handleApplyScene = useCallback(
+    (scene: Scene) => {
+      const movedToHidden = store.applyScene(scene)
+      const extra =
+        movedToHidden > 0
+          ? ` ${movedToHidden} other stream${movedToHidden === 1 ? ' was' : 's were'} moved to Hidden.`
+          : ''
+      store.pushToast(`Loaded scene "${scene.name}".${extra}`, 'success')
+    },
+    [store],
+  )
+
+  const handleDeleteScene = useCallback(
+    (scene: Scene) => {
+      store.deleteScene(scene.id)
+      store.pushToast(`Deleted scene "${scene.name}".`, 'info')
     },
     [store],
   )
@@ -383,12 +412,17 @@ function App() {
               hiddenStreams={store.hiddenStreams}
               favoriteStreams={favoriteStreams}
               recents={store.recents}
+              scenes={store.scenes}
+              activeCount={activeCount}
               onUnhide={handleUnhide}
               onDelete={handleRemoveRequest}
               onToggleFavorite={store.toggleFavorite}
               onAddFromRecent={handleAddFromRecent}
               onRemoveRecent={store.removeRecent}
               onClearRecents={store.clearRecents}
+              onSaveScene={handleSaveScene}
+              onApplyScene={handleApplyScene}
+              onDeleteScene={handleDeleteScene}
             />
           )}
         </div>

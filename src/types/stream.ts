@@ -62,6 +62,25 @@ export interface RecentStream {
   lastUsedAt: number
 }
 
+/** One stream inside a saved scene (just enough to recreate it). */
+export interface SceneStream {
+  platform: Platform
+  channelOrId: string
+  originalUrl: string
+  label: string
+}
+
+/** A named, saved set of streams plus the layout and which one was focused. */
+export interface Scene {
+  id: string
+  name: string
+  streams: SceneStream[]
+  layout: LayoutMode
+  /** Index into `streams` of the focused stream, or null when none. */
+  featuredIndex: number | null
+  savedAt: number
+}
+
 export interface DashboardSettings {
   theme: ThemeMode
   layout: LayoutMode
@@ -79,6 +98,8 @@ export interface PersistedState {
   streams: StreamEntry[]
   settings: DashboardSettings
   recents: RecentStream[]
+  /** Optional so data saved before scenes existed still loads. */
+  scenes?: Scene[]
 }
 
 export const CURRENT_STATE_VERSION = 1

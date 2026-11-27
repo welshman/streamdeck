@@ -9,6 +9,8 @@ import {
   DEFAULT_SETTINGS,
   PersistedState,
   RecentStream,
+  Scene,
+  SceneStream,
   StreamEntry,
   normalizeLayout,
 } from '@/types/stream'
@@ -42,6 +44,7 @@ function emptyState(): PersistedState {
     streams: [],
     settings: { ...DEFAULT_SETTINGS },
     recents: [],
+    scenes: [],
   }
 }
 
@@ -75,11 +78,43 @@ function normalizeStream(raw: unknown): StreamEntry | null {
   }
 }
 
+/** Validates a saved scene, dropping malformed streams inside it and
+ * returning null if the scene itself is unusable. */
+function normalizeScene(raw: unknown): Scene | null {
+  if (!raw || typeof raw !== 'object') return null
+  const s = raw as Partial<Scene>
+  if (!s.id || typeof s.name !== 'string' || !Array.isArray(s.streams)) return null
+  const streams: SceneStream[] = []
+  for (const item of s.streams) {
+    if (!item || typeof item !== 'object') continue
+    const x = item as Partial<SceneStream>
+    if (!x.platform || !x.channelOrId || !x.originalUrl) continue
+    streams.push({
+      platform: x.platform,
+      channelOrId: x.channelOrId,
+      originalUrl: x.originalUrl,
+      label: x.label || x.channelOrId,
+    })
+  }
+  const idx = s.featuredIndex
+  return {
+    id: s.id,
+    name: s.name,
+    streams,
+    layout: normalizeLayout(s.layout),
+    featuredIndex: typeof idx === 'number' && idx >= 0 && idx < streams.length ? idx : null,
+    savedAt: s.savedAt ?? Date.now(),
+  }
+}
+
 function migrate(raw: unknown): PersistedState {
   if (!raw || typeof raw !== 'object') return emptyState()
   const obj = raw as Partial<PersistedState>
   const streams = Array.isArray(obj.streams)
     ? obj.streams.map(normalizeStream).filter((s): s is StreamEntry => s !== null)
+    : []
+  const scenes = Array.isArray(obj.scenes)
+    ? obj.scenes.map(normalizeScene).filter((s): s is Scene => s !== null)
     : []
   const savedLayout = obj.settings && typeof obj.settings === 'object' ? obj.settings.layout : undefined
   return {
@@ -91,6 +126,7 @@ function migrate(raw: unknown): PersistedState {
       layout: savedLayout === undefined ? DEFAULT_SETTINGS.layout : normalizeLayout(savedLayout),
     },
     recents: Array.isArray(obj.recents) ? (obj.recents as RecentStream[]) : [],
+    scenes,
   }
 }
 
