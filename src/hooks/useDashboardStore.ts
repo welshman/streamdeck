@@ -27,6 +27,8 @@ import {
 import { decodeShareHash } from '@/utils/shareLink'
 
 const MAX_SCENES = 20
+// Same key storage.ts saves under; used to notice changes made from another tab.
+const STATE_STORAGE_KEY = 'streamdeck:state:v1'
 
 export interface ToastAction {
   label: string
@@ -75,6 +77,7 @@ export function useDashboardStore() {
   const [toasts, setToasts] = useState<ToastMessage[]>([])
   const hydratedFromShare = useRef(false)
   const saveWarned = useRef(false)
+  const staleWarned = useRef(false)
 
   // Toasts with an action (e.g. Undo) stay a little longer so there's time to use them.
   const pushToast = useCallback(
@@ -126,6 +129,23 @@ export function useDashboardStore() {
       pushToast(result.error, 'error')
     }
   }, [streams, settings, recents, scenes, pushToast])
+
+  // Two tabs both save to the same storage key, so the last one to save wins. The browser
+  // only fires this event in the *other* tabs, so warn once that this tab is out of date.
+  useEffect(() => {
+    function onStorage(e: StorageEvent) {
+      if (e.storageArea !== window.localStorage || e.key !== STATE_STORAGE_KEY) return
+      if (staleWarned.current) return
+      staleWarned.current = true
+      pushToast(
+        'StreamDeck was changed in another tab. Reload to see the latest — saving here would overwrite those changes.',
+        'info',
+        { label: 'Reload', onClick: () => window.location.reload() },
+      )
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [pushToast])
 
   const dismissToast = useCallback((id: string) => {
     setToasts((t) => t.filter((toast) => toast.id !== id))

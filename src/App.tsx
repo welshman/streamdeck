@@ -36,6 +36,8 @@ function App() {
   const [theater, setTheater] = useState(false)
   const [reloadSignal, setReloadSignal] = useState(0)
   const [online, setOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine))
+  const wasOffline = useRef(false)
+  const pushToastRef = useRef(store.pushToast)
 
   const activeCount = store.visibleStreams.length
   const focusedLabel = store.visibleStreams.find((s) => s.id === store.settings.featuredStreamId)?.label
@@ -56,9 +58,21 @@ function App() {
     if (window.matchMedia('(max-width: 1023px)').matches) setSidebarOpen(false)
   }, [setSidebarOpen])
 
+  // Players that stalled while the connection was down will not recover on their own, so
+  // when it comes back they are all reloaded once.
   useEffect(() => {
-    const goOnline = () => setOnline(true)
-    const goOffline = () => setOnline(false)
+    const goOnline = () => {
+      setOnline(true)
+      if (wasOffline.current) {
+        wasOffline.current = false
+        setReloadSignal((n) => n + 1)
+        pushToastRef.current('Back online — reloading players.', 'info')
+      }
+    }
+    const goOffline = () => {
+      wasOffline.current = true
+      setOnline(false)
+    }
     window.addEventListener('online', goOnline)
     window.addEventListener('offline', goOffline)
     return () => {
@@ -87,7 +101,6 @@ function App() {
 
   // Paste a stream link anywhere on the page (outside text fields and dialogs) to add it.
   const handleAddRef = useRef(handleAdd)
-  const pushToastRef = useRef(store.pushToast)
   useEffect(() => {
     handleAddRef.current = handleAdd
     pushToastRef.current = store.pushToast
@@ -176,6 +189,14 @@ function App() {
     },
     [store],
   )
+
+  const handleUnhideAll = useCallback(() => {
+    const hidden = store.hiddenStreams
+    hidden.forEach((s) => store.unhideStream(s.id))
+    if (hidden.length > 0) {
+      store.pushToast(`Unhid ${hidden.length} stream${hidden.length === 1 ? '' : 's'}.`, 'success')
+    }
+  }, [store])
 
   const handleSaveScene = useCallback(
     (name: string): boolean => {
@@ -280,11 +301,21 @@ function App() {
     focusStreamAt((currentIndex + direction + list.length) % list.length)
   }
 
+  // The docked chat only exists in Single focus, so say so instead of silently doing nothing.
+  const toggleDockChat = () => {
+    if (store.settings.layout !== 'focus') {
+      store.pushToast('Docked chat is available in the Single focus layout (press F).', 'info')
+      return
+    }
+    store.setDockChat(!store.settings.dockChat)
+  }
+
   useKeyboardShortcuts({
     onAddStream: () => setAddModalOpen(true),
     onToggleSidebar: () => store.setSidebarOpen(!store.settings.sidebarOpen),
     onFocusMode: () => store.setLayout(store.settings.layout === 'focus' ? 'grid' : 'focus'),
     onToggleTheater: () => setTheater((v) => !v),
+    onToggleDockChat: toggleDockChat,
     onResetLayout: () => store.resetLayout(),
     onShowHelp: () => setShortcutsOpen(true),
     onToggleTheme: cycleTheme,
@@ -341,8 +372,8 @@ function App() {
                 className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-400"
               >
                 <WifiOff className="h-4 w-4 shrink-0" aria-hidden="true" />
-                You&apos;re offline. Streams will stall until your connection returns — use the reload
-                button on a card if one doesn&apos;t recover by itself.
+                You&apos;re offline. Streams will stall until your connection returns — they&apos;ll be
+                reloaded automatically when it does.
               </div>
             )}
 
@@ -437,7 +468,9 @@ function App() {
               recents={store.recents}
               scenes={store.scenes}
               activeCount={activeCount}
+              onClose={() => store.setSidebarOpen(false)}
               onUnhide={handleUnhide}
+              onUnhideAll={handleUnhideAll}
               onDelete={handleRemoveRequest}
               onToggleFavorite={store.toggleFavorite}
               onAddFromRecent={handleAddFromRecent}
