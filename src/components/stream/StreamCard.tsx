@@ -150,7 +150,11 @@ export function StreamCard({
   }, [stream.originalUrl])
 
   const commitLabel = () => {
-    onUpdateLabel(stream.id, labelDraft)
+    // Only save when the value actually changed, so clicking another button
+    // (which blurs the input) doesn't fire a spurious save.
+    if (labelDraft.trim() !== stream.label) {
+      onUpdateLabel(stream.id, labelDraft)
+    }
     setEditingLabel(false)
   }
 
