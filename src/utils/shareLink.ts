@@ -3,7 +3,7 @@
  * can send a link that reconstructs someone else's stream list without
  * any backend. The payload is base64url-encoded JSON (kept dependency-free).
  */
-import { PersistedState, normalizeLayout } from '@/types/stream'
+import { PersistedState, StreamEntry, normalizeLayout } from '@/types/stream'
 
 const HASH_PREFIX = '#share='
 
@@ -37,6 +37,19 @@ export function encodeShareLink(config: ShareableConfig): string {
   return url.toString()
 }
 
+/** A shared stream must have all the fields the app needs to render it. */
+function isValidStream(s: unknown): s is StreamEntry {
+  if (!s || typeof s !== 'object') return false
+  const x = s as Partial<StreamEntry>
+  return Boolean(
+    x.id &&
+      x.platform &&
+      x.channelOrId &&
+      x.originalUrl &&
+      typeof x.label === 'string',
+  )
+}
+
 export function decodeShareHash(hash: string): ShareableConfig | null {
   if (!hash.startsWith(HASH_PREFIX)) return null
   try {
@@ -44,7 +57,15 @@ export function decodeShareHash(hash: string): ShareableConfig | null {
     const json = fromBase64Url(encoded)
     const parsed = JSON.parse(json)
     if (!Array.isArray(parsed.streams)) return null
-    return { ...parsed, layout: normalizeLayout(parsed.layout) } as ShareableConfig
+    // Only keep streams that actually have the fields the app needs, so a
+    // malformed link can't crash the dashboard on load.
+    const streams = parsed.streams.filter(isValidStream)
+    if (streams.length === 0) return null
+    return {
+      streams,
+      layout: normalizeLayout(parsed.layout),
+      featuredStreamId: typeof parsed.featuredStreamId === 'string' ? parsed.featuredStreamId : null,
+    }
   } catch {
     return null
   }
