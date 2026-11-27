@@ -141,8 +141,11 @@ export function StreamGrid({
                 <div className="flex gap-3 overflow-x-auto pb-1 lg:absolute lg:inset-0 lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden lg:pb-0">
                   {rest.map((s) => (
                     <div key={s.id} className="w-64 shrink-0 lg:w-full">
-                      {/* Only the focused stream may play audio: rail streams are always muted. */}
-                      <SafeStreamCard {...cardProps({ ...s, isMuted: true })} onFocus={() => onSetFeatured(s.id)} />
+                      {/* Rail streams keep their real mute state: the store already
+                          mutes everything except the featured stream when one is set,
+                          so forcing isMuted here would make the mute button lie about
+                          the actual state. */}
+                      <SafeStreamCard {...cardProps(s)} onFocus={() => onSetFeatured(s.id)} />
                     </div>
                   ))}
                 </div>
