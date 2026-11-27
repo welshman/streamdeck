@@ -1,15 +1,22 @@
 import { ExternalLink } from 'lucide-react'
 import { StreamEntry } from '@/types/stream'
-import { buildTwitchChatUrl, chatSupported, buildKickChannelUrl, originalStreamUrl } from '@/utils/embed'
+import {
+  buildTwitchChatUrl,
+  buildKickChatUrl,
+  chatSupported,
+  originalStreamUrl,
+} from '@/utils/embed'
 
 interface ChatPanelProps {
   stream: StreamEntry
   className?: string
 }
 
-/** Renders an embedded chat iframe when the platform supports it
- * (currently only Twitch has a documented public chat embed), otherwise
- * shows a fallback button that opens the native chat/stream in a new tab. */
+/** Renders an embedded chat iframe when the platform supports it.
+ * Twitch has a documented public chat embed. Kick's popout chat URL is
+ * attempted in an iframe (it works in OBS browser docks) with a visible
+ * fallback link in case Kick blocks third-party framing. Other platforms
+ * show a fallback button that opens the native chat/stream in a new tab. */
 export function ChatPanel({ stream, className }: ChatPanelProps) {
   if (stream.platform === 'twitch' && chatSupported('twitch')) {
     return (
@@ -24,17 +31,34 @@ export function ChatPanel({ stream, className }: ChatPanelProps) {
     )
   }
 
-  const fallbackUrl =
-    stream.platform === 'kick'
-      ? buildKickChannelUrl(stream.channelOrId)
-      : originalStreamUrl(stream.platform, stream.channelOrId)
+  if (stream.platform === 'kick') {
+    return (
+      <div className={`relative ${className ?? ''}`}>
+        <iframe
+          title={`Kick chat: ${stream.channelOrId}`}
+          src={buildKickChatUrl(stream.channelOrId)}
+          className="h-full w-full rounded-lg border-0 bg-surface-sunken"
+          loading="lazy"
+        />
+        <a
+          href={buildKickChatUrl(stream.channelOrId)}
+          target="_blank"
+          rel="noreferrer noopener"
+          className="absolute bottom-2 right-2 z-10 inline-flex items-center gap-1.5 rounded-md bg-surface-raised/90 px-2 py-1 text-xs font-medium text-text shadow-card backdrop-blur hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+        >
+          Open chat in new tab
+          <ExternalLink className="h-3 w-3" aria-hidden="true" />
+        </a>
+      </div>
+    )
+  }
+
+  const fallbackUrl = originalStreamUrl(stream.platform, stream.channelOrId)
 
   return (
     <div className={`${className ?? ''} flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-surface-sunken p-4 text-center`}>
       <p className="text-xs text-text-muted">
-        {stream.platform === 'kick'
-          ? 'Kick does not currently offer a documented public chat embed.'
-          : 'Chat embedding is not available for this platform.'}
+        Chat embedding is not available for this platform.
       </p>
       <a
         href={fallbackUrl}

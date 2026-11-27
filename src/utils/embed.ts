@@ -1,119 +1,86 @@
 /**
- * Utilities for building embed URLs / config for each platform, honoring
- * each platform's documented embedding requirements.
+ * Per-platform URL builders. Every platform gets an embed URL for the
+ * player, a chat URL where supported, and a canonical "original" URL
+ * for opening the stream in a new tab.
+ *
+ * Twitch and YouTube both document public iframe embeds. Kick documents
+ * an embeddable player but (as of writing) not a chat embed, so its chat
+ * falls back to the channel page / popout chat URL.
  */
 import { Platform } from '@/types/stream'
 
-/**
- * Twitch requires a `parent` query parameter listing the hostname(s) that
- * are allowed to embed the player. We derive it from the current
- * hostname at runtime so it works on GitHub Pages (username.github.io),
- * a custom domain, localhost, and Vite preview/deploy previews without
- * any manual configuration.
- */
-export function getTwitchParentHost(): string {
-  if (typeof window === 'undefined') return 'localhost'
-  return window.location.hostname || 'localhost'
+/** Platforms that currently support a real embedded chat iframe. */
+const CHAT_SUPPORTED: readonly Platform[] = ['twitch']
+
+export function chatSupported(platform: Platform): boolean {
+  return CHAT_SUPPORTED.includes(platform)
 }
 
-export interface TwitchEmbedOptions {
-  channel: string
-  muted: boolean
-  parent?: string
-}
-
-export function buildTwitchEmbedUrl({ channel, muted, parent }: TwitchEmbedOptions): string {
-  const parentHost = parent ?? getTwitchParentHost()
+export function buildTwitchEmbedUrl({ channel, muted }: { channel: string; muted: boolean }): string {
+  const parent = getTwitchParentHost()
   const params = new URLSearchParams({
     channel,
-    parent: parentHost,
+    parent,
+    autoplay: 'false',
     muted: String(muted),
-    autoplay: 'true',
   })
   return `https://player.twitch.tv/?${params.toString()}`
 }
 
-export function buildTwitchChatUrl(channel: string, parent?: string): string {
-  const parentHost = parent ?? getTwitchParentHost()
-  const params = new URLSearchParams({ parent: parentHost })
-  return `https://www.twitch.tv/embed/${channel}/chat?${params.toString()}`
+export function buildKickEmbedUrl({ channel, muted }: { channel: string; muted: boolean }): string {
+  // Kick's player honors autoplay/muted as URL params; it does not support
+  // postMessage-based control, so mute toggles require a reload.
+  const params = new URLSearchParams({
+    muted: String(muted),
+    autoplay: 'true',
+  })
+  return `https://player.kick.com/${encodeURIComponent(channel)}?${params.toString()}`
 }
 
-/**
- * Kick's player (player.kick.com/<channel>) only honors the `autoplay`
- * and `muted` URL parameters and ignores postMessage, so muting or
- * unmuting a Kick stream means changing `muted` in the URL, which
- * reloads the iframe. There is currently no officially documented
- * chat-only iframe embed for third-party sites, so we surface a
- * "open chat" fallback instead of assuming one exists.
- */
-export interface KickEmbedOptions {
-  channel: string
-  muted: boolean
-}
-
-export function buildKickEmbedUrl({ channel, muted }: KickEmbedOptions): string {
-  const params = new URLSearchParams({ autoplay: 'true', muted: String(muted) })
-  return `https://player.kick.com/${channel}?${params.toString()}`
-}
-
-export const KICK_CHAT_EMBED_SUPPORTED = false
-
-export function buildKickChannelUrl(channel: string): string {
-  return `https://kick.com/${channel}`
-}
-
-/**
- * YouTube IFrame embed. `enablejsapi=1` is only added when the caller
- * needs programmatic control (mute/unmute, play/pause) via the IFrame
- * Player API; otherwise we omit it to keep the embed minimal.
- */
-export interface YouTubeEmbedOptions {
-  videoId: string
-  muted: boolean
-  enableJsApi?: boolean
-  origin?: string
-}
-
-export function buildYouTubeEmbedUrl({
-  videoId,
-  muted,
-  enableJsApi = true,
-  origin,
-}: YouTubeEmbedOptions): string {
-  const originHost =
-    origin ?? (typeof window !== 'undefined' ? window.location.origin : undefined)
+export function buildYouTubeEmbedUrl({ videoId, muted }: { videoId: string; muted: boolean }): string {
   const params = new URLSearchParams({
     autoplay: '1',
     mute: muted ? '1' : '0',
-    playsinline: '1',
     rel: '0',
     modestbranding: '1',
   })
-  if (enableJsApi) params.set('enablejsapi', '1')
-  if (originHost) params.set('origin', originHost)
-  return `https://www.youtube.com/embed/${videoId}?${params.toString()}`
+  return `https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}?${params.toString()}`
 }
 
-/** Minimum recommended iframe sizes per platform documentation, used to
- * enforce sane minimums in the grid/layout CSS. */
-export const MIN_EMBED_SIZE: Record<Platform, { width: number; height: number }> = {
-  twitch: { width: 260, height: 146 },
-  kick: { width: 260, height: 146 },
-  youtube: { width: 200, height: 113 },
+export function buildTwitchChatUrl(channel: string): string {
+  const parent = getTwitchParentHost()
+  const params = new URLSearchParams({ parent, popout: '' })
+  return `https://www.twitch.tv/embed/${encodeURIComponent(channel)}/chat?${params.toString()}`
 }
 
-export function chatSupported(platform: Platform): boolean {
-  return platform === 'twitch'
+/** Kick's chat-only popout page. Kick documents this URL for OBS browser
+ * docks; whether it renders inside a third-party website iframe depends on
+ * Kick's frame headers, so the UI keeps an "open in new tab" fallback. */
+export function buildKickChatUrl(channel: string): string {
+  return `https://kick.com/popout/${encodeURIComponent(channel)}/chat`
+}
+
+export function buildYouTubeChatUrl(): string {
+  // YouTube live chat cannot be embedded reliably without an API key,
+  // so we always fall back to opening the stream page.
+  return ''
 }
 
 export function originalStreamUrl(platform: Platform, channelOrId: string): string {
   switch (platform) {
     case 'twitch':
-      return `https://www.twitch.tv/${channelOrId}`
+      return `https://www.twitch.tv/${encodeURIComponent(channelOrId)}`
     case 'kick':
-      return `https://kick.com/${channelOrId}`
+      return `https://kick.com/${encodeURIComponent(channelOrId)}`
     case 'youtube':
-      return `https://www.youtube.com/watch?v=${channelOrId}`
+      return `https://www.youtube.com/watch?v=${encodeURIComponent(channelOrId)}`
   }
+}
+
+/** Twitch requires the embedding page's hostname as `parent`. Reading it
+ * at runtime means the same build works on localhost, GitHub Pages, and
+ * any custom domain without configuration. */
+export function getTwitchParentHost(): string {
+  if (typeof window === 'undefined') return 'localhost'
+  return window.location.hostname
 }
