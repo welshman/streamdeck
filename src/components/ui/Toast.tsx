@@ -13,6 +13,10 @@ const ICONS = {
   info: Info,
 }
 
+// Only the newest few are shown, so rapid actions (e.g. cycling focus with N) can't
+// pile up a tall stack of toasts. Older ones still expire on their own timer.
+const MAX_VISIBLE = 3
+
 export function ToastStack({ toasts, onDismiss }: ToastStackProps) {
   return (
     <div
@@ -20,7 +24,7 @@ export function ToastStack({ toasts, onDismiss }: ToastStackProps) {
       role="status"
       aria-live="polite"
     >
-      {toasts.map((toast) => (
+      {toasts.slice(-MAX_VISIBLE).map((toast) => (
         <ToastItem key={toast.id} toast={toast} onDismiss={onDismiss} />
       ))}
     </div>

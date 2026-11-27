@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { AlertCircle, Plus, Sparkles, Search, Info } from 'lucide-react'
 import { Modal } from '@/components/ui/Modal'
 import { Platform, RecentStream } from '@/types/stream'
@@ -27,6 +27,18 @@ export function AddStreamModal({ isOpen, onClose, onAdd, recents, onAddFromRecen
   const [addedCount, setAddedCount] = useState(0)
   const [recentQuery, setRecentQuery] = useState('')
 
+  // This component stays mounted while the dialog is closed, so clear it out on close.
+  // Otherwise reopening it shows the old text and old error messages.
+  useEffect(() => {
+    if (!isOpen) {
+      setValue('')
+      setHint(null)
+      setErrors([])
+      setAddedCount(0)
+      setRecentQuery('')
+    }
+  }, [isOpen])
+
   const candidateLines = useMemo(() => splitMultipleInputs(value), [value])
 
   // StreamDeck has no backend, so there is no way to search Twitch, Kick,
@@ -47,12 +59,14 @@ export function AddStreamModal({ isOpen, onClose, onAdd, recents, onAddFromRecen
 
     const lines = candidateLines.length > 0 ? candidateLines : [value]
     const newErrors: string[] = []
+    const failedLines: string[] = []
     let successCount = 0
 
     for (const line of lines) {
       const result = onAdd(line, hint)
       if (!result.ok && result.error) {
         newErrors.push(result.error)
+        failedLines.push(line)
       } else if (result.ok) {
         successCount++
       }
@@ -63,6 +77,10 @@ export function AddStreamModal({ isOpen, onClose, onAdd, recents, onAddFromRecen
     if (newErrors.length === 0) {
       setValue('')
       onClose()
+    } else {
+      // Keep only the lines that failed, so fixing them and pressing Add again
+      // doesn't try to re-add the ones that already worked.
+      setValue(failedLines.join('\n'))
     }
   }
 
@@ -77,16 +95,24 @@ export function AddStreamModal({ isOpen, onClose, onAdd, recents, onAddFromRecen
             id="stream-input"
             value={value}
             onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => {
+              if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault()
+                e.currentTarget.form?.requestSubmit()
+              }
+            }}
             placeholder={'twitch.tv/somechannel\nkick.com/somechannel\nhttps://youtube.com/watch?v=dQw4w9WgXcQ\n\nPaste multiple lines to add several streams at once.'}
             rows={4}
             className="w-full resize-none rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text placeholder:text-text-muted focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
             autoFocus
           />
-          {candidateLines.length > 1 && (
+          {candidateLines.length > 1 ? (
             <p className="mt-1 flex items-center gap-1 text-xs text-text-muted">
               <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
               {candidateLines.length} streams detected — all will be added at once.
             </p>
+          ) : (
+            <p className="mt-1 text-xs text-text-muted">Press Ctrl/Cmd + Enter to add.</p>
           )}
         </div>
 
@@ -125,8 +151,11 @@ export function AddStreamModal({ isOpen, onClose, onAdd, recents, onAddFromRecen
           </div>
         )}
 
-        {addedCount > 0 && errors.length === 0 && (
-          <p className="text-sm text-green-500">Added {addedCount} stream{addedCount === 1 ? '' : 's'}.</p>
+        {addedCount > 0 && (
+          <p className="text-sm text-green-500">
+            Added {addedCount} stream{addedCount === 1 ? '' : 's'}.
+            {errors.length > 0 && ' The lines below still need fixing.'}
+          </p>
         )}
 
         <div className="flex justify-end gap-2">
