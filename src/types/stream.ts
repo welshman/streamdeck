@@ -6,14 +6,18 @@
 
 export type Platform = 'twitch' | 'kick' | 'youtube'
 
-export type LayoutMode =
-  | 'grid'
-  | 'columns-2'
-  | 'columns-3'
-  | 'columns-4'
-  | 'featured'
-  | 'pip'
-  | 'focus'
+export type LayoutMode = 'grid' | 'columns-2' | 'columns-3' | 'columns-4' | 'pip' | 'focus'
+
+const VALID_LAYOUTS: readonly string[] = ['grid', 'columns-2', 'columns-3', 'columns-4', 'pip', 'focus']
+
+/** Coerces any saved/shared layout value into a valid LayoutMode. The
+ * removed 'featured' layout maps to 'focus'; anything unknown falls
+ * back to 'grid'. */
+export function normalizeLayout(value: unknown): LayoutMode {
+  if (value === 'featured') return 'focus'
+  if (typeof value === 'string' && VALID_LAYOUTS.includes(value)) return value as LayoutMode
+  return 'grid'
+}
 
 export type ChatPosition = 'side' | 'bottom' | 'hidden'
 

@@ -10,6 +10,7 @@ import {
   PersistedState,
   RecentStream,
   StreamEntry,
+  normalizeLayout,
 } from '@/types/stream'
 
 const STORAGE_KEY = 'streamdeck:state:v1'
@@ -79,10 +80,15 @@ function migrate(raw: unknown): PersistedState {
   const streams = Array.isArray(obj.streams)
     ? obj.streams.map(normalizeStream).filter((s): s is StreamEntry => s !== null)
     : []
+  const savedLayout = obj.settings && typeof obj.settings === 'object' ? obj.settings.layout : undefined
   return {
     version: CURRENT_STATE_VERSION,
     streams,
-    settings: { ...DEFAULT_SETTINGS, ...(obj.settings ?? {}) },
+    settings: {
+      ...DEFAULT_SETTINGS,
+      ...(obj.settings ?? {}),
+      layout: savedLayout === undefined ? DEFAULT_SETTINGS.layout : normalizeLayout(savedLayout),
+    },
     recents: Array.isArray(obj.recents) ? (obj.recents as RecentStream[]) : [],
   }
 }

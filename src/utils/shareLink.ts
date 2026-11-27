@@ -3,7 +3,7 @@
  * can send a link that reconstructs someone else's stream list without
  * any backend. The payload is base64url-encoded JSON (kept dependency-free).
  */
-import { PersistedState } from '@/types/stream'
+import { PersistedState, normalizeLayout } from '@/types/stream'
 
 const HASH_PREFIX = '#share='
 
@@ -44,7 +44,7 @@ export function decodeShareHash(hash: string): ShareableConfig | null {
     const json = fromBase64Url(encoded)
     const parsed = JSON.parse(json)
     if (!Array.isArray(parsed.streams)) return null
-    return parsed as ShareableConfig
+    return { ...parsed, layout: normalizeLayout(parsed.layout) } as ShareableConfig
   } catch {
     return null
   }

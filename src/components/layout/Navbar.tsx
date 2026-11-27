@@ -45,7 +45,6 @@ const LAYOUTS: { id: LayoutMode; label: string; icon: typeof LayoutGrid }[] = [
   { id: 'columns-2', label: 'Two columns', icon: Columns2 },
   { id: 'columns-3', label: 'Three columns', icon: Columns3 },
   { id: 'columns-4', label: 'Four columns', icon: Columns4 },
-  { id: 'featured', label: 'Featured + grid', icon: MonitorPlay },
   { id: 'pip', label: 'Picture-in-picture style', icon: PictureInPicture2 },
   { id: 'focus', label: 'Single focus', icon: Maximize2 },
 ]

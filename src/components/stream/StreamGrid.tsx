@@ -37,7 +37,6 @@ const GRID_CLASSES: Record<LayoutMode, string> = {
   'columns-2': 'grid grid-cols-1 gap-4 sm:grid-cols-2',
   'columns-3': 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3',
   'columns-4': 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4',
-  featured: '',
   pip: '',
   focus: '',
 }
@@ -116,48 +115,24 @@ export function StreamGrid({
     )
   }
 
-  if (layout === 'featured' || layout === 'pip') {
+  if (layout === 'pip') {
     const featured = streams.find((s) => s.id === featuredStreamId) ?? streams[0]
     const secondary = streams.filter((s) => s.id !== featured?.id)
-
-    if (layout === 'pip') {
-      return (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <div className="relative min-h-[60vh] rounded-2xl bg-black/10">
-            {featured && (
-              <div className="h-[70vh] max-h-[800px] w-full">
-                <StreamCard {...cardProps(featured)} />
-              </div>
-            )}
-            {secondary.length > 0 && (
-              <SortableContext items={secondary.map((s) => s.id)} strategy={rectSortingStrategy}>
-                <div className="mt-3 flex flex-wrap gap-3 sm:absolute sm:bottom-3 sm:right-3 sm:mt-0 sm:w-72">
-                  {secondary.map((s) => (
-                    <div key={s.id} className="w-full sm:w-64">
-                      <StreamCard {...cardProps(s)} />
-                    </div>
-                  ))}
-                </div>
-              </SortableContext>
-            )}
-          </div>
-        </DndContext>
-      )
-    }
-
     return (
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2.2fr)_minmax(280px,1fr)]">
+        <div className="relative min-h-[60vh] rounded-2xl bg-black/10">
           {featured && (
-            <div className="min-h-[40vh]">
+            <div className="h-[70vh] max-h-[800px] w-full">
               <StreamCard {...cardProps(featured)} />
             </div>
           )}
           {secondary.length > 0 && (
             <SortableContext items={secondary.map((s) => s.id)} strategy={rectSortingStrategy}>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-1">
+              <div className="mt-3 flex flex-wrap gap-3 sm:absolute sm:bottom-3 sm:right-3 sm:mt-0 sm:w-72">
                 {secondary.map((s) => (
-                  <StreamCard key={s.id} {...cardProps(s)} />
+                  <div key={s.id} className="w-full sm:w-64">
+                    <StreamCard {...cardProps(s)} />
+                  </div>
                 ))}
               </div>
             </SortableContext>
