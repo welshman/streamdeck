@@ -94,18 +94,18 @@ export function StreamGrid({
     const rest = streams.filter((s) => s.id !== focused?.id)
     return (
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3 lg:h-[calc(100dvh-9.5rem)] lg:min-h-[420px] lg:flex-row">
           {focused && (
-            <div className="mx-auto w-full max-w-4xl">
-              <StreamCard {...cardProps(focused)} />
+            <div className="aspect-video min-h-0 min-w-0 lg:aspect-auto lg:flex-1">
+              <StreamCard {...cardProps(focused)} fill />
             </div>
           )}
           {rest.length > 0 && (
             <SortableContext items={rest.map((s) => s.id)} strategy={rectSortingStrategy}>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+              <div className="flex shrink-0 gap-3 overflow-x-auto pb-1 lg:w-72 lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden lg:pb-0 xl:w-80">
                 {rest.map((s) => (
-                  <div key={s.id} className="aspect-video">
-                    <StreamCard {...cardProps(s)} />
+                  <div key={s.id} className="w-64 shrink-0 lg:w-full">
+                    <StreamCard {...cardProps(s)} onFocus={() => onSetFeatured(s.id)} />
                   </div>
                 ))}
               </div>
