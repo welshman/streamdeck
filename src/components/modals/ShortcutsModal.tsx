@@ -8,7 +8,10 @@ interface ShortcutsModalProps {
 const SHORTCUTS: { keys: string; description: string }[] = [
   { keys: 'A', description: 'Open the add-stream dialog' },
   { keys: 'S', description: 'Toggle the sidebar' },
-  { keys: 'F', description: 'Toggle focus mode for the featured stream' },
+  { keys: 'F', description: 'Toggle Single focus layout' },
+  { keys: 'N / P', description: 'Focus the next / previous stream (moves the audio too)' },
+  { keys: '1 – 9', description: 'Focus the stream in that position' },
+  { keys: 'C', description: 'Collapse or expand all card controls' },
   { keys: 'R', description: 'Reset the current layout' },
   { keys: 'T', description: 'Cycle the theme (dark / light / system)' },
   { keys: 'M', description: 'Mute or unmute all streams' },
@@ -20,7 +23,7 @@ export function ShortcutsModal({ isOpen, onClose }: ShortcutsModalProps) {
   return (
     <Modal title="Keyboard shortcuts" isOpen={isOpen} onClose={onClose} size="sm">
       <p className="mb-3 text-sm text-text-muted">
-        Shortcuts are disabled while typing in a text field.
+        Shortcuts are disabled while typing in a text field or while a dialog is open.
       </p>
       <dl className="flex flex-col divide-y divide-border">
         {SHORTCUTS.map((s) => (
@@ -30,7 +33,7 @@ export function ShortcutsModal({ isOpen, onClose }: ShortcutsModalProps) {
                 {s.keys}
               </kbd>
             </dt>
-            <dd className="text-sm text-text-muted">{s.description}</dd>
+            <dd className="text-right text-sm text-text-muted">{s.description}</dd>
           </div>
         ))}
       </dl>

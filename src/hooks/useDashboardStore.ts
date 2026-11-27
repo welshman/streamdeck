@@ -2,7 +2,7 @@
  * Central client-side "store" for StreamDeck. Implemented as a single
  * hook (no external state library needed) that owns streams + settings,
  * persists to localStorage on every change, and exposes a typed API
- * consumed by the rest of the app via DashboardContext.
+ * to the rest of the app.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
@@ -43,10 +43,8 @@ export function useDashboardStore() {
   const [settings, setSettings] = useState<DashboardSettings>(initial.value.settings)
   const [recents, setRecents] = useState<RecentStream[]>(initial.value.recents)
   const [toasts, setToasts] = useState<ToastMessage[]>([])
-  const [storageWarning, setStorageWarning] = useState<string | null>(
-    initial.ok ? null : initial.error ?? null,
-  )
   const hydratedFromShare = useRef(false)
+  const saveWarned = useRef(false)
 
   const pushToast = useCallback((text: string, tone: ToastMessage['tone'] = 'info') => {
     const id = generateId('toast')
@@ -55,6 +53,14 @@ export function useDashboardStore() {
       setToasts((t) => t.filter((toast) => toast.id !== id))
     }, 4000)
   }, [])
+
+  // Tell the user once if their saved data couldn't be read (a backup copy
+  // of the unreadable data is kept by loadState before it is replaced).
+  useEffect(() => {
+    if (!initial.ok && storageAvailable) {
+      pushToast("Your saved data couldn't be read, so StreamDeck started fresh. A backup copy was kept in this browser.", 'error')
+    }
+  }, [initial, pushToast])
 
   // Apply a shared config from the URL hash exactly once on first load.
   useEffect(() => {
@@ -76,10 +82,13 @@ export function useDashboardStore() {
   useEffect(() => {
     const state: PersistedState = { version: 1, streams, settings, recents }
     const result = saveState(state)
-    if (!result.ok && result.error) {
-      setStorageWarning(result.error)
+    if (result.ok) {
+      saveWarned.current = false
+    } else if (result.error && storageAvailable && !saveWarned.current) {
+      saveWarned.current = true
+      pushToast(result.error, 'error')
     }
-  }, [streams, settings, recents])
+  }, [streams, settings, recents, pushToast])
 
   const dismissToast = useCallback((id: string) => {
     setToasts((t) => t.filter((toast) => toast.id !== id))
@@ -160,25 +169,8 @@ export function useDashboardStore() {
     setStreams((prev) => prev.map((s) => (s.id === id ? { ...s, showChat: !s.showChat } : s)))
   }, [])
 
-  const setChatPosition = useCallback((id: string, position: StreamEntry['chatPosition']) => {
-    setStreams((prev) => prev.map((s) => (s.id === id ? { ...s, chatPosition: position } : s)))
-  }, [])
-
-  const setAllChatsVisible = useCallback((visible: boolean) => {
-    setStreams((prev) => prev.map((s) => ({ ...s, showChat: visible })))
-    setSettings((prev) => ({ ...prev, chatsGloballyHidden: !visible }))
-  }, [])
-
-  const updateNote = useCallback((id: string, note: string) => {
-    setStreams((prev) => prev.map((s) => (s.id === id ? { ...s, note } : s)))
-  }, [])
-
   const updateLabel = useCallback((id: string, label: string) => {
     setStreams((prev) => prev.map((s) => (s.id === id ? { ...s, label: label.trim() || s.label } : s)))
-  }, [])
-
-  const updateAccentColor = useCallback((id: string, color: string | undefined) => {
-    setStreams((prev) => prev.map((s) => (s.id === id ? { ...s, accentColor: color } : s)))
   }, [])
 
   const toggleControlsCollapsed = useCallback((id: string) => {
@@ -223,10 +215,6 @@ export function useDashboardStore() {
     setSettings((prev) => ({ ...prev, sidebarSide: side }))
   }, [])
 
-  const setHideOfflineStreams = useCallback((value: boolean) => {
-    setSettings((prev) => ({ ...prev, hideOfflineStreams: value }))
-  }, [])
-
   // `orderedIds` is the desired order of the visible streams. We must
   // assign each stream its new position explicitly: reorder() sorts by the
   // existing `order` field, so passing a re-arranged array straight into it
@@ -251,10 +239,14 @@ export function useDashboardStore() {
     pushToast('Layout reset to automatic grid.', 'info')
   }, [pushToast])
 
-  const markViewed = useCallback((id: string) => {
-    setStreams((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, lastViewedAt: Date.now() } : s)),
+  const removeRecent = useCallback((recent: RecentStream) => {
+    setRecents((prev) =>
+      prev.filter((r) => !(r.platform === recent.platform && r.channelOrId === recent.channelOrId)),
     )
+  }, [])
+
+  const clearRecents = useCallback(() => {
+    setRecents([])
   }, [])
 
   const exportConfig = useCallback((): string => {
@@ -294,7 +286,6 @@ export function useDashboardStore() {
     recents,
     toasts,
     storageAvailable,
-    storageWarning,
     pushToast,
     dismissToast,
     addStream,
@@ -305,11 +296,7 @@ export function useDashboardStore() {
     toggleMute,
     setMuteAll,
     toggleChat,
-    setChatPosition,
-    setAllChatsVisible,
-    updateNote,
     updateLabel,
-    updateAccentColor,
     toggleControlsCollapsed,
     setAllControlsCollapsed,
     setFeatured,
@@ -318,10 +305,10 @@ export function useDashboardStore() {
     setDensity,
     setSidebarOpen,
     setSidebarSide,
-    setHideOfflineStreams,
     reorderStreams,
     resetLayout,
-    markViewed,
+    removeRecent,
+    clearRecents,
     exportConfig,
     importConfig,
     clearAllStreams,

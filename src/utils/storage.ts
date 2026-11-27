@@ -14,6 +14,7 @@ import {
 } from '@/types/stream'
 
 const STORAGE_KEY = 'streamdeck:state:v1'
+const CORRUPT_BACKUP_KEY = 'streamdeck:state:v1:corrupt-backup'
 const MAX_RECENTS = 12
 
 export interface StorageResult<T> {
@@ -97,12 +98,22 @@ export function loadState(): StorageResult<PersistedState> {
   if (!storageAvailable) {
     return { ok: false, value: emptyState(), error: 'localStorage is unavailable in this browser context.' }
   }
+  let raw: string | null = null
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
+    raw = window.localStorage.getItem(STORAGE_KEY)
     if (!raw) return { ok: true, value: emptyState() }
     const parsed = JSON.parse(raw)
     return { ok: true, value: migrate(parsed) }
   } catch (err) {
+    // Keep a copy of data we couldn't read: the app is about to start from
+    // an empty state and the next save would otherwise overwrite it.
+    if (raw) {
+      try {
+        window.localStorage.setItem(CORRUPT_BACKUP_KEY, raw)
+      } catch {
+        /* ignore */
+      }
+    }
     return {
       ok: false,
       value: emptyState(),

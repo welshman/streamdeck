@@ -1,8 +1,7 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useDashboardStore } from '@/hooks/useDashboardStore'
 import { useTheme } from '@/hooks/useTheme'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
-import { DashboardContext } from '@/context/DashboardContext'
 import { Navbar } from '@/components/layout/Navbar'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { StatusBar } from '@/components/layout/StatusBar'
@@ -17,6 +16,7 @@ import { ShareLinkModal } from '@/components/stream/ShareLinkModal'
 import { parseStreamInputWithHint } from '@/utils/streamParser'
 import { encodeShareLink } from '@/utils/shareLink'
 import { StreamEntry, Platform, RecentStream } from '@/types/stream'
+import { originalStreamUrl } from '@/utils/embed'
 import { Share2, Plus } from 'lucide-react'
 
 function App() {
@@ -29,6 +29,13 @@ function App() {
   const [shareOpen, setShareOpen] = useState(false)
   const [shareLink, setShareLink] = useState('')
   const [pendingDelete, setPendingDelete] = useState<StreamEntry | null>(null)
+  const [confirmClearAll, setConfirmClearAll] = useState(false)
+
+  const activeCount = store.visibleStreams.length
+
+  useEffect(() => {
+    document.title = activeCount > 0 ? `StreamDeck (${activeCount})` : 'StreamDeck'
+  }, [activeCount])
 
   const handleAdd = useCallback(
     (input: string, hint: Platform | null): { ok: boolean; error?: string } => {
@@ -53,12 +60,7 @@ function App() {
       const added = store.addStream({
         platform: recent.platform,
         channelOrId: recent.channelOrId,
-        originalUrl:
-          recent.platform === 'youtube'
-            ? `https://www.youtube.com/watch?v=${recent.channelOrId}`
-            : recent.platform === 'kick'
-              ? `https://kick.com/${recent.channelOrId}`
-              : `https://www.twitch.tv/${recent.channelOrId}`,
+        originalUrl: originalStreamUrl(recent.platform, recent.channelOrId),
         label: recent.label,
       })
       if (added) {
@@ -81,6 +83,13 @@ function App() {
       setPendingDelete(null)
     }
   }, [pendingDelete, store])
+
+  const confirmClearAllStreams = useCallback(() => {
+    store.clearAllStreams()
+    store.pushToast('Removed all streams.', 'info')
+    setConfirmClearAll(false)
+    setSettingsOpen(false)
+  }, [store])
 
   const handleHide = useCallback(
     (id: string) => {
@@ -144,6 +153,22 @@ function App() {
     store.setTheme(next)
   }, [store])
 
+  // Focusing a stream (via setFeatured) also moves the audio to it.
+  const focusStreamAt = (index: number) => {
+    const target = store.visibleStreams[index]
+    if (!target) return
+    store.setFeatured(target.id)
+    store.pushToast(`Focused ${target.label}.`, 'info')
+  }
+
+  const cycleFocus = (direction: 1 | -1) => {
+    const list = store.visibleStreams
+    if (list.length === 0) return
+    const currentId = store.settings.featuredStreamId ?? list[0].id
+    const currentIndex = Math.max(0, list.findIndex((s) => s.id === currentId))
+    focusStreamAt((currentIndex + direction + list.length) % list.length)
+  }
+
   useKeyboardShortcuts({
     onAddStream: () => setAddModalOpen(true),
     onToggleSidebar: () => store.setSidebarOpen(!store.settings.sidebarOpen),
@@ -152,6 +177,9 @@ function App() {
     onShowHelp: () => setShortcutsOpen(true),
     onToggleTheme: cycleTheme,
     onMuteAllToggle: handleMuteAll,
+    onToggleControls: handleToggleAllControlsCollapsed,
+    onCycleFocus: cycleFocus,
+    onFocusIndex: focusStreamAt,
     onEscape: () => {
       setAddModalOpen(false)
       setSettingsOpen(false)
@@ -163,7 +191,7 @@ function App() {
   const favoriteStreams = store.streams.filter((s) => s.isFavorite && !s.isHidden)
 
   return (
-    <DashboardContext.Provider value={store}>
+    <>
       <div className="flex h-screen flex-col bg-surface">
         <Navbar
           layout={store.settings.layout}
@@ -252,7 +280,10 @@ function App() {
             recents={store.recents}
             onUnhide={handleUnhide}
             onDelete={handleRemoveRequest}
+            onToggleFavorite={store.toggleFavorite}
             onAddFromRecent={handleAddFromRecent}
+            onRemoveRecent={store.removeRecent}
+            onClearRecents={store.clearRecents}
           />
         </div>
 
@@ -277,11 +308,10 @@ function App() {
         settings={store.settings}
         onSetDensity={store.setDensity}
         onSetSidebarSide={store.setSidebarSide}
-        onSetHideOfflineStreams={store.setHideOfflineStreams}
         onExport={store.exportConfig}
         onImport={handleImport}
         onResetLayout={store.resetLayout}
-        onClearAll={store.clearAllStreams}
+        onClearAll={() => setConfirmClearAll(true)}
       />
 
       <ShortcutsModal isOpen={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
@@ -301,8 +331,17 @@ function App() {
         onCancel={() => setPendingDelete(null)}
       />
 
+      <ConfirmDialog
+        isOpen={confirmClearAll}
+        title="Remove all streams?"
+        message={`This will permanently remove all ${store.streams.length} saved streams (including hidden ones) from your dashboard. Export a backup from Settings first if you might want them back.`}
+        confirmLabel="Remove all"
+        onConfirm={confirmClearAllStreams}
+        onCancel={() => setConfirmClearAll(false)}
+      />
+
       <ToastStack toasts={store.toasts} onDismiss={store.dismissToast} />
-    </DashboardContext.Provider>
+    </>
   )
 }
 

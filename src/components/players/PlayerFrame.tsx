@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { RefreshCw, AlertTriangle } from 'lucide-react'
 
 interface PlayerFrameProps {
@@ -7,36 +7,33 @@ interface PlayerFrameProps {
   allow?: string
 }
 
+const LOAD_TIMEOUT_MS = 20000
+
 /**
  * Shared iframe wrapper providing consistent loading skeleton and error
  * fallback UI across Twitch/Kick/YouTube embeds. Iframes cannot reliably
  * report *why* they failed (cross-origin), so we treat a slow/failed
  * load plus a timeout as a best-effort "may be unavailable" signal
- * rather than a guaranteed error state.
+ * rather than a guaranteed error state. The timer restarts whenever the
+ * embed URL changes (e.g. a Kick mute/unmute reload) or on manual reload.
  */
 export function PlayerFrame({ title, src, allow }: PlayerFrameProps) {
   const [status, setStatus] = useState<'loading' | 'loaded' | 'timeout'>('loading')
   const [reloadKey, setReloadKey] = useState(0)
-  const timeoutRef = useRef<number | null>(null)
 
-  const startTimeout = useCallback(() => {
-    if (timeoutRef.current) window.clearTimeout(timeoutRef.current)
-    timeoutRef.current = window.setTimeout(() => {
-      setStatus((s) => (s === 'loading' ? 'timeout' : s))
-    }, 12000)
-  }, [])
-
-  const handleReload = useCallback(() => {
+  useEffect(() => {
     setStatus('loading')
-    setReloadKey((k) => k + 1)
-    startTimeout()
-  }, [startTimeout])
+    const timer = window.setTimeout(() => {
+      setStatus((s) => (s === 'loading' ? 'timeout' : s))
+    }, LOAD_TIMEOUT_MS)
+    return () => window.clearTimeout(timer)
+  }, [src, reloadKey])
 
   return (
     <div className="relative h-full w-full overflow-hidden rounded-xl bg-black">
       {status === 'loading' && (
         <div
-          className="absolute inset-0 z-10 flex items-center justify-center bg-surface-sunken"
+          className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-surface-sunken"
           aria-hidden="true"
         >
           <div className="h-full w-full animate-shimmer bg-gradient-to-r from-surface-sunken via-surface-raised to-surface-sunken bg-[length:800px_100%]" />
@@ -51,7 +48,7 @@ export function PlayerFrame({ title, src, allow }: PlayerFrameProps) {
           </p>
           <button
             type="button"
-            onClick={handleReload}
+            onClick={() => setReloadKey((k) => k + 1)}
             className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface-raised px-3 py-1.5 text-sm font-medium text-text hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
           >
             <RefreshCw className="h-4 w-4" aria-hidden="true" />
@@ -67,8 +64,6 @@ export function PlayerFrame({ title, src, allow }: PlayerFrameProps) {
         allow={allow ?? 'autoplay; fullscreen; picture-in-picture; encrypted-media'}
         allowFullScreen
         onLoad={() => setStatus('loaded')}
-        onLoadStart={startTimeout}
-        loading="lazy"
       />
     </div>
   )

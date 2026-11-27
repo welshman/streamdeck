@@ -19,25 +19,55 @@ const SIZES: Record<string, string> = {
 
 export function Modal({ title, isOpen, onClose, children, footer, size = 'md' }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
+  // Always call the latest onClose without making it an effect dependency:
+  // callers pass inline arrows, and re-running the effect on every parent
+  // render used to yank focus back to the dialog (stealing it from inputs).
+  const onCloseRef = useRef(onClose)
+  const openerRef = useRef<HTMLElement | null>(null)
+  const wasOpenRef = useRef(false)
+
+  useEffect(() => {
+    onCloseRef.current = onClose
+  })
+
+  // Remember what had focus just before the dialog opened (read during
+  // render, i.e. before any autoFocus inside the dialog has run).
+  if (isOpen && !wasOpenRef.current) {
+    openerRef.current = typeof document !== 'undefined' ? (document.activeElement as HTMLElement | null) : null
+  }
+  wasOpenRef.current = isOpen
 
   useEffect(() => {
     if (!isOpen) return
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') onCloseRef.current()
     }
     document.addEventListener('keydown', onKeyDown)
-    const previouslyFocused = document.activeElement as HTMLElement | null
-    dialogRef.current?.focus()
+
+    const dialog = dialogRef.current
+    if (dialog && !dialog.contains(document.activeElement)) {
+      dialog.focus()
+    }
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
     return () => {
       document.removeEventListener('keydown', onKeyDown)
-      previouslyFocused?.focus()
+      document.body.style.overflow = previousOverflow
+      openerRef.current?.focus?.()
     }
-  }, [isOpen, onClose])
+  }, [isOpen])
 
   if (!isOpen) return null
 
   return createPortal(
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 p-4 animate-fade-in motion-reduce:animate-none">
+    <div
+      className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 p-4 animate-fade-in motion-reduce:animate-none"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onCloseRef.current()
+      }}
+    >
       <div
         ref={dialogRef}
         role="dialog"
@@ -45,7 +75,6 @@ export function Modal({ title, isOpen, onClose, children, footer, size = 'md' }:
         aria-labelledby="modal-title"
         tabIndex={-1}
         className={`w-full ${SIZES[size]} max-h-[85vh] overflow-y-auto rounded-2xl border border-border bg-surface-raised p-5 shadow-card-lg animate-slide-up motion-reduce:animate-none`}
-        onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 id="modal-title" className="text-lg font-semibold text-text">

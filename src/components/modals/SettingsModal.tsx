@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Download, Upload, Copy, Check, ShieldCheck } from 'lucide-react'
 import { Modal } from '@/components/ui/Modal'
-import { Toggle } from '@/components/ui/Toggle'
 import { DashboardSettings, Density } from '@/types/stream'
 
 interface SettingsModalProps {
@@ -10,7 +9,6 @@ interface SettingsModalProps {
   settings: DashboardSettings
   onSetDensity: (density: Density) => void
   onSetSidebarSide: (side: 'left' | 'right') => void
-  onSetHideOfflineStreams: (value: boolean) => void
   onExport: () => string
   onImport: (json: string) => { ok: boolean; error?: string }
   onResetLayout: () => void
@@ -23,7 +21,6 @@ export function SettingsModal({
   settings,
   onSetDensity,
   onSetSidebarSide,
-  onSetHideOfflineStreams,
   onExport,
   onImport,
   onResetLayout,
@@ -83,6 +80,7 @@ export function SettingsModal({
       }
     }
     reader.readAsText(file)
+    e.target.value = ''
   }
 
   return (
@@ -128,15 +126,6 @@ export function SettingsModal({
               </button>
             ))}
           </div>
-        </section>
-
-        <section className="rounded-xl border border-border p-3">
-          <Toggle
-            checked={settings.hideOfflineStreams}
-            onChange={onSetHideOfflineStreams}
-            label="Hide offline streams"
-            description="Best-effort only. StreamDeck is a static site with no backend, so live/offline status cannot be reliably detected without a platform API key. When enabled, this only hides streams whose player reports an error state after loading — it will not catch every offline stream."
-          />
         </section>
 
         <section className="flex items-start gap-3 rounded-xl border border-border bg-surface p-3">

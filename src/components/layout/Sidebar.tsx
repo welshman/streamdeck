@@ -1,4 +1,4 @@
-import { Eye, Trash2, Star, Clock, Search } from 'lucide-react'
+import { Eye, Trash2, Star, Clock, Search, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { StreamEntry, RecentStream } from '@/types/stream'
 import { PlatformBadge } from '@/components/ui/PlatformBadge'
@@ -14,7 +14,10 @@ interface SidebarProps {
   recents: RecentStream[]
   onUnhide: (id: string) => void
   onDelete: (stream: StreamEntry) => void
+  onToggleFavorite: (id: string) => void
   onAddFromRecent: (recent: RecentStream) => void
+  onRemoveRecent: (recent: RecentStream) => void
+  onClearRecents: () => void
 }
 
 type Tab = 'hidden' | 'favorites' | 'recent'
@@ -27,7 +30,10 @@ export function Sidebar({
   recents,
   onUnhide,
   onDelete,
+  onToggleFavorite,
   onAddFromRecent,
+  onRemoveRecent,
+  onClearRecents,
 }: SidebarProps) {
   const [tab, setTab] = useState<Tab>('hidden')
   const [query, setQuery] = useState('')
@@ -63,7 +69,7 @@ export function Sidebar({
               ? `Hidden (${hiddenStreams.length})`
               : t === 'favorites'
                 ? `Favorites (${favoriteStreams.length})`
-                : 'Recent'}
+                : `Recent (${recents.length})`}
           </button>
         ))}
       </div>
@@ -118,9 +124,13 @@ export function Sidebar({
             <ul className="flex flex-col gap-1.5">
               {favoriteStreams.map((s) => (
                 <li key={s.id} className="flex items-center gap-2 rounded-lg border border-border bg-surface p-2">
-                  <Star className="h-3.5 w-3.5 shrink-0 fill-yellow-400 text-yellow-400" aria-hidden="true" />
                   <PlatformBadge platform={s.platform} />
                   <span className="min-w-0 flex-1 truncate text-sm text-text">{s.label}</span>
+                  <Tooltip content="Remove from favorites">
+                    <IconButton label={`Remove ${s.label} from favorites`} onClick={() => onToggleFavorite(s.id)}>
+                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" aria-hidden="true" />
+                    </IconButton>
+                  </Tooltip>
                 </li>
               ))}
             </ul>
@@ -132,22 +142,39 @@ export function Sidebar({
               Streams you add will show up here for quick re-adding later.
             </p>
           ) : (
-            <ul className="flex flex-col gap-1.5">
-              {recents.map((r) => (
-                <li key={`${r.platform}-${r.channelOrId}`} className="flex items-center gap-2 rounded-lg border border-border bg-surface p-2">
-                  <Clock className="h-3.5 w-3.5 shrink-0 text-text-muted" aria-hidden="true" />
-                  <PlatformBadge platform={r.platform} />
-                  <span className="min-w-0 flex-1 truncate text-sm text-text">{r.label}</span>
-                  <button
-                    type="button"
-                    onClick={() => onAddFromRecent(r)}
-                    className="rounded-md border border-border px-2 py-1 text-xs font-medium text-text hover:bg-surface-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
-                  >
-                    Add
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <>
+              <div className="mb-1.5 flex items-center justify-between px-1">
+                <span className="text-xs text-text-muted">Newest first</span>
+                <button
+                  type="button"
+                  onClick={onClearRecents}
+                  className="rounded text-xs text-text-muted underline hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+                >
+                  Clear all
+                </button>
+              </div>
+              <ul className="flex flex-col gap-1.5">
+                {recents.map((r) => (
+                  <li key={`${r.platform}-${r.channelOrId}`} className="flex items-center gap-2 rounded-lg border border-border bg-surface p-2">
+                    <Clock className="h-3.5 w-3.5 shrink-0 text-text-muted" aria-hidden="true" />
+                    <PlatformBadge platform={r.platform} />
+                    <span className="min-w-0 flex-1 truncate text-sm text-text">{r.label}</span>
+                    <button
+                      type="button"
+                      onClick={() => onAddFromRecent(r)}
+                      className="rounded-md border border-border px-2 py-1 text-xs font-medium text-text hover:bg-surface-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+                    >
+                      Add
+                    </button>
+                    <Tooltip content="Remove from recents">
+                      <IconButton label={`Remove ${r.label} from recents`} onClick={() => onRemoveRecent(r)}>
+                        <X className="h-4 w-4" aria-hidden="true" />
+                      </IconButton>
+                    </Tooltip>
+                  </li>
+                ))}
+              </ul>
+            </>
           ))}
       </div>
     </aside>
