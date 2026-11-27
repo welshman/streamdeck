@@ -46,6 +46,18 @@ function ToastItem({ toast, onDismiss }: { toast: ToastMessage; onDismiss: (id: 
         aria-hidden="true"
       />
       <p className="flex-1 text-sm text-text">{toast.text}</p>
+      {toast.action && (
+        <button
+          type="button"
+          onClick={() => {
+            toast.action?.onClick()
+            onDismiss(toast.id)
+          }}
+          className="shrink-0 rounded-md border border-border px-2 py-0.5 text-xs font-semibold text-accent hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+        >
+          {toast.action.label}
+        </button>
+      )}
       <button
         type="button"
         aria-label="Dismiss notification"

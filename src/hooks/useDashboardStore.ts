@@ -24,10 +24,16 @@ import {
 } from '@/utils/storage'
 import { decodeShareHash } from '@/utils/shareLink'
 
+export interface ToastAction {
+  label: string
+  onClick: () => void
+}
+
 export interface ToastMessage {
   id: string
   text: string
   tone: 'info' | 'success' | 'error'
+  action?: ToastAction
 }
 
 function reorder(streams: StreamEntry[]): StreamEntry[] {
@@ -46,13 +52,20 @@ export function useDashboardStore() {
   const hydratedFromShare = useRef(false)
   const saveWarned = useRef(false)
 
-  const pushToast = useCallback((text: string, tone: ToastMessage['tone'] = 'info') => {
-    const id = generateId('toast')
-    setToasts((t) => [...t, { id, text, tone }])
-    window.setTimeout(() => {
-      setToasts((t) => t.filter((toast) => toast.id !== id))
-    }, 4000)
-  }, [])
+  // Toasts with an action (e.g. Undo) stay a little longer so there's time to use them.
+  const pushToast = useCallback(
+    (text: string, tone: ToastMessage['tone'] = 'info', action?: ToastAction) => {
+      const id = generateId('toast')
+      setToasts((t) => [...t, { id, text, tone, action }])
+      window.setTimeout(
+        () => {
+          setToasts((t) => t.filter((toast) => toast.id !== id))
+        },
+        action ? 8000 : 4000,
+      )
+    },
+    [],
+  )
 
   // Tell the user once if their saved data couldn't be read (a backup copy
   // of the unreadable data is kept by loadState before it is replaced).
@@ -139,6 +152,16 @@ export function useDashboardStore() {
   const removeStream = useCallback((id: string) => {
     setStreams((prev) => reorder(prev.filter((s) => s.id !== id)))
     setSettings((prev) => (prev.featuredStreamId === id ? { ...prev, featuredStreamId: null } : prev))
+  }, [])
+
+  // Puts a previously removed stream back at (roughly) its old position. Used by "Undo".
+  const restoreStream = useCallback((stream: StreamEntry) => {
+    setStreams((prev) => {
+      if (prev.some((s) => s.id === stream.id)) return prev
+      const sorted = prev.slice().sort((a, b) => a.order - b.order)
+      sorted.splice(Math.min(Math.max(stream.order, 0), sorted.length), 0, stream)
+      return sorted.map((s, idx) => ({ ...s, order: idx }))
+    })
   }, [])
 
   const hideStream = useCallback((id: string) => {
@@ -290,6 +313,7 @@ export function useDashboardStore() {
     dismissToast,
     addStream,
     removeStream,
+    restoreStream,
     hideStream,
     unhideStream,
     toggleFavorite,

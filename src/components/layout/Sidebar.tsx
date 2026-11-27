@@ -48,8 +48,10 @@ export function Sidebar({
   return (
     <aside
       className={cx(
-        'flex w-72 shrink-0 flex-col border-border bg-surface-raised/60',
-        side === 'left' ? 'border-r order-first' : 'border-l order-last',
+        // Small screens: slides over the streams instead of squeezing them. lg+: normal docked column.
+        'fixed bottom-8 top-14 z-30 flex w-72 max-w-[85vw] flex-col border-border bg-surface-raised shadow-card-lg',
+        'lg:static lg:z-auto lg:max-w-none lg:shrink-0 lg:bg-surface-raised/60 lg:shadow-none',
+        side === 'left' ? 'left-0 border-r lg:order-first' : 'right-0 border-l lg:order-last',
       )}
       aria-label="Saved and hidden streams"
     >
