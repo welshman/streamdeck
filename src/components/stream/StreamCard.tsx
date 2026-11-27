@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, CSSProperties } from 'react'
+import { useEffect, useState, useRef, useCallback, CSSProperties } from 'react'
 import {
   X,
   EyeOff,
@@ -71,6 +71,11 @@ export function StreamCard({
   const [copied, setCopied] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
+  // Keep the rename box in sync with the saved label (e.g. after Undo or a scene load).
+  useEffect(() => {
+    if (!editingLabel) setLabelDraft(stream.label)
+  }, [stream.label, editingLabel])
+
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: stream.id,
   })
@@ -87,7 +92,11 @@ export function StreamCard({
     if (document.fullscreenElement) {
       document.exitFullscreen().catch(() => {})
     } else {
-      el.requestFullscreen?.().catch(() => {})
+      el.requestFullscreen?.().catch(() => {
+        // Browsers block this if the site isn't allowed to go fullscreen (e.g. some
+        // embedded contexts). Tell the user instead of failing silently.
+        alert('Fullscreen was blocked by the browser. Try again from the main page.')
+      })
     }
   }, [])
 
@@ -97,21 +106,47 @@ export function StreamCard({
       | null
     if (!iframe) return
     // Cross-origin iframes generally cannot be handed to
-    // requestPictureInPicture; this is a best-effort call that silently
-    // no-ops when the browser/platform doesn't allow it.
+    // requestPictureInPicture; tell the user instead of failing silently.
     if (typeof iframe.requestPictureInPicture === 'function') {
-      iframe.requestPictureInPicture?.().catch(() => {})
+      iframe.requestPictureInPicture?.().catch(() => {
+        alert('Picture-in-picture isn\'t available for this embedded player.')
+      })
+    } else {
+      alert('Picture-in-picture isn\'t available for this embedded player.')
     }
   }, [])
 
   const handleCopyLink = useCallback(() => {
-    navigator.clipboard
-      ?.writeText(stream.originalUrl)
-      .then(() => {
+    // navigator.clipboard only exists in secure contexts (https or localhost). On plain
+    // http (e.g. a LAN IP) fall back to the older execCommand approach so the button
+    // still works.
+    const fallback = () => {
+      const ta = document.createElement('textarea')
+      ta.value = stream.originalUrl
+      ta.style.position = 'fixed'
+      ta.style.opacity = '0'
+      document.body.appendChild(ta)
+      ta.select()
+      const ok = document.execCommand('copy')
+      document.body.removeChild(ta)
+      if (ok) {
         setCopied(true)
         window.setTimeout(() => setCopied(false), 1500)
-      })
-      .catch(() => {})
+      } else {
+        alert('Copy failed. The link is: ' + stream.originalUrl)
+      }
+    }
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard
+        .writeText(stream.originalUrl)
+        .then(() => {
+          setCopied(true)
+          window.setTimeout(() => setCopied(false), 1500)
+        })
+        .catch(fallback)
+    } else {
+      fallback()
+    }
   }, [stream.originalUrl])
 
   const commitLabel = () => {
@@ -306,9 +341,9 @@ export function StreamCard({
             className="shrink-0"
           >
             {isCollapsed ? (
-              <ChevronsLeft className="h-4 w-4" aria-hidden="true" />
+              <ChevronsLeft className="h-[18px] w-[18px]" aria-hidden="true" />
             ) : (
-              <ChevronsRight className="h-4 w-4" aria-hidden="true" />
+              <ChevronsRight className="h-[18px] w-[18px]" aria-hidden="true" />
             )}
           </IconButton>
         </Tooltip>
