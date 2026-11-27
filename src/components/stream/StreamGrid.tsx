@@ -104,7 +104,8 @@ export function StreamGrid({
               <div className="flex shrink-0 gap-3 overflow-x-auto pb-1 lg:w-72 lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden lg:pb-0 xl:w-80">
                 {rest.map((s) => (
                   <div key={s.id} className="w-64 shrink-0 lg:w-full">
-                    <StreamCard {...cardProps(s)} onFocus={() => onSetFeatured(s.id)} />
+                    {/* Only the focused stream may play audio: rail streams are always muted. */}
+                    <StreamCard {...cardProps({ ...s, isMuted: true })} onFocus={() => onSetFeatured(s.id)} />
                   </div>
                 ))}
               </div>
