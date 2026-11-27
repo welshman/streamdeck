@@ -1,4 +1,4 @@
-import { ReactNode, useId, useState } from 'react'
+import { ReactNode, useEffect, useId, useState } from 'react'
 import { cx } from '@/utils/classNames'
 
 interface TooltipProps {
@@ -12,6 +12,18 @@ interface TooltipProps {
 export function Tooltip({ content, children, side = 'top' }: TooltipProps) {
   const [visible, setVisible] = useState(false)
   const id = useId()
+
+  // Escape closes the tooltip, and it can't get stuck open when the focused
+  // element is removed (e.g. a stream card being deleted) because the blur
+  // handler runs on unmount via the effect cleanup.
+  useEffect(() => {
+    if (!visible) return
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setVisible(false)
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [visible])
 
   return (
     <span
