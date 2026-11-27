@@ -7,8 +7,10 @@ interface ShortcutsModalProps {
 
 const SHORTCUTS: { keys: string; description: string }[] = [
   { keys: 'A', description: 'Open the add-stream dialog' },
+  { keys: 'Ctrl/Cmd + V', description: 'Paste a Twitch, Kick or YouTube link anywhere to add it' },
   { keys: 'S', description: 'Toggle the sidebar' },
   { keys: 'F', description: 'Toggle Single focus layout' },
+  { keys: 'Z', description: 'Theater mode: hide the bars so streams fill the window' },
   { keys: 'N / P', description: 'Focus the next / previous stream (moves the audio too)' },
   { keys: '1 – 9', description: 'Focus the stream in that position' },
   { keys: 'C', description: 'Collapse or expand all card controls' },
@@ -16,7 +18,7 @@ const SHORTCUTS: { keys: string; description: string }[] = [
   { keys: 'T', description: 'Cycle the theme (dark / light / system)' },
   { keys: 'M', description: 'Mute or unmute all streams' },
   { keys: '?', description: 'Show this shortcuts panel' },
-  { keys: 'Esc', description: 'Close any open dialog' },
+  { keys: 'Esc', description: 'Close any open dialog, or leave theater mode' },
 ]
 
 export function ShortcutsModal({ isOpen, onClose }: ShortcutsModalProps) {

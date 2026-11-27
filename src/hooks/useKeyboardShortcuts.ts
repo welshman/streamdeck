@@ -4,6 +4,7 @@ export interface ShortcutHandlers {
   onAddStream: () => void
   onToggleSidebar: () => void
   onFocusMode: () => void
+  onToggleTheater: () => void
   onResetLayout: () => void
   onShowHelp: () => void
   onToggleTheme: () => void
@@ -60,6 +61,9 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers) {
           break
         case 'f':
           h.onFocusMode()
+          break
+        case 'z':
+          h.onToggleTheater()
           break
         case 'n':
           h.onCycleFocus(1)

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useDashboardStore } from '@/hooks/useDashboardStore'
 import { useTheme } from '@/hooks/useTheme'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
@@ -17,7 +17,10 @@ import { parseStreamInputWithHint } from '@/utils/streamParser'
 import { encodeShareLink } from '@/utils/shareLink'
 import { StreamEntry, Platform, RecentStream } from '@/types/stream'
 import { originalStreamUrl } from '@/utils/embed'
-import { Share2, Plus } from 'lucide-react'
+import { cx } from '@/utils/classNames'
+import { Share2, Plus, Expand, Minimize2, WifiOff } from 'lucide-react'
+
+const STREAM_LINK_PATTERN = /^(https?:\/\/)?(www\.|m\.)?(twitch\.tv|kick\.com|youtube\.com|youtu\.be)\//i
 
 function App() {
   const store = useDashboardStore()
@@ -30,12 +33,25 @@ function App() {
   const [shareLink, setShareLink] = useState('')
   const [pendingDelete, setPendingDelete] = useState<StreamEntry | null>(null)
   const [confirmClearAll, setConfirmClearAll] = useState(false)
+  const [theater, setTheater] = useState(false)
+  const [online, setOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine))
 
   const activeCount = store.visibleStreams.length
 
   useEffect(() => {
     document.title = activeCount > 0 ? `StreamDeck (${activeCount})` : 'StreamDeck'
   }, [activeCount])
+
+  useEffect(() => {
+    const goOnline = () => setOnline(true)
+    const goOffline = () => setOnline(false)
+    window.addEventListener('online', goOnline)
+    window.addEventListener('offline', goOffline)
+    return () => {
+      window.removeEventListener('online', goOnline)
+      window.removeEventListener('offline', goOffline)
+    }
+  }, [])
 
   const handleAdd = useCallback(
     (input: string, hint: Platform | null): { ok: boolean; error?: string } => {
@@ -54,6 +70,35 @@ function App() {
     },
     [store],
   )
+
+  // Paste a stream link anywhere on the page (outside text fields and dialogs) to add it.
+  const handleAddRef = useRef(handleAdd)
+  const pushToastRef = useRef(store.pushToast)
+  useEffect(() => {
+    handleAddRef.current = handleAdd
+    pushToastRef.current = store.pushToast
+  })
+
+  useEffect(() => {
+    function onPaste(e: ClipboardEvent) {
+      const target = e.target
+      if (target instanceof HTMLElement) {
+        const tag = target.tagName.toLowerCase()
+        if (tag === 'input' || tag === 'textarea' || tag === 'select' || target.isContentEditable) return
+      }
+      if (document.querySelector('[aria-modal="true"]')) return
+      const text = e.clipboardData?.getData('text') ?? ''
+      const links = text.split(/\s+/).filter((part) => STREAM_LINK_PATTERN.test(part))
+      if (links.length === 0) return
+      e.preventDefault()
+      for (const link of links) {
+        const result = handleAddRef.current(link, null)
+        if (!result.ok && result.error) pushToastRef.current(result.error, 'error')
+      }
+    }
+    window.addEventListener('paste', onPaste)
+    return () => window.removeEventListener('paste', onPaste)
+  }, [])
 
   const handleAddFromRecent = useCallback(
     (recent: RecentStream) => {
@@ -182,6 +227,7 @@ function App() {
     onAddStream: () => setAddModalOpen(true),
     onToggleSidebar: () => store.setSidebarOpen(!store.settings.sidebarOpen),
     onFocusMode: () => store.setLayout(store.settings.layout === 'focus' ? 'grid' : 'focus'),
+    onToggleTheater: () => setTheater((v) => !v),
     onResetLayout: () => store.resetLayout(),
     onShowHelp: () => setShortcutsOpen(true),
     onToggleTheme: cycleTheme,
@@ -194,6 +240,7 @@ function App() {
       setSettingsOpen(false)
       setShortcutsOpen(false)
       setShareOpen(false)
+      setTheater(false)
     },
   })
 
@@ -202,25 +249,27 @@ function App() {
   return (
     <>
       <div className="flex h-screen flex-col bg-surface">
-        <Navbar
-          layout={store.settings.layout}
-          onLayoutChange={store.setLayout}
-          theme={store.settings.theme}
-          onThemeChange={store.setTheme}
-          sidebarOpen={store.settings.sidebarOpen}
-          sidebarSide={store.settings.sidebarSide}
-          onToggleSidebar={() => store.setSidebarOpen(!store.settings.sidebarOpen)}
-          onAddStream={() => setAddModalOpen(true)}
-          onOpenSettings={() => setSettingsOpen(true)}
-          onOpenShortcuts={() => setShortcutsOpen(true)}
-          onMuteAll={handleMuteAll}
-          onToggleAllControlsCollapsed={handleToggleAllControlsCollapsed}
-          allControlsCollapsed={allControlsCollapsed}
-          streamCount={store.visibleStreams.length}
-        />
+        {!theater && (
+          <Navbar
+            layout={store.settings.layout}
+            onLayoutChange={store.setLayout}
+            theme={store.settings.theme}
+            onThemeChange={store.setTheme}
+            sidebarOpen={store.settings.sidebarOpen}
+            sidebarSide={store.settings.sidebarSide}
+            onToggleSidebar={() => store.setSidebarOpen(!store.settings.sidebarOpen)}
+            onAddStream={() => setAddModalOpen(true)}
+            onOpenSettings={() => setSettingsOpen(true)}
+            onOpenShortcuts={() => setShortcutsOpen(true)}
+            onMuteAll={handleMuteAll}
+            onToggleAllControlsCollapsed={handleToggleAllControlsCollapsed}
+            allControlsCollapsed={allControlsCollapsed}
+            streamCount={store.visibleStreams.length}
+          />
+        )}
 
         <div className="flex min-h-0 flex-1 overflow-hidden">
-          <main className="flex-1 overflow-y-auto p-4">
+          <main className={cx('flex-1 overflow-y-auto', theater ? 'p-2' : 'p-4')}>
             {!store.storageAvailable && (
               <div className="mb-4 rounded-lg border border-yellow-500/40 bg-yellow-500/10 px-3 py-2 text-sm text-yellow-600 dark:text-yellow-400">
                 localStorage is unavailable in this browser context (e.g. private browsing).
@@ -229,24 +278,46 @@ function App() {
               </div>
             )}
 
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-              <h1 className="text-sm font-medium text-text-muted">
-                {store.visibleStreams.length === 0
-                  ? 'No active streams'
-                  : `Viewing ${store.visibleStreams.length} stream${store.visibleStreams.length === 1 ? '' : 's'}`}
-              </h1>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={handleShare}
-                  disabled={store.visibleStreams.length === 0}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm text-text hover:bg-surface-raised disabled:opacity-40"
-                >
-                  <Share2 className="h-4 w-4" aria-hidden="true" />
-                  Share
-                </button>
+            {!online && (
+              <div
+                role="status"
+                className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-400"
+              >
+                <WifiOff className="h-4 w-4 shrink-0" aria-hidden="true" />
+                You&apos;re offline. Streams will stall until your connection returns — use the reload
+                button on a card if one doesn&apos;t recover by itself.
               </div>
-            </div>
+            )}
+
+            {!theater && (
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                <h1 className="text-sm font-medium text-text-muted">
+                  {store.visibleStreams.length === 0
+                    ? 'No active streams'
+                    : `Viewing ${store.visibleStreams.length} stream${store.visibleStreams.length === 1 ? '' : 's'}`}
+                </h1>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTheater(true)}
+                    disabled={store.visibleStreams.length === 0}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm text-text hover:bg-surface-raised disabled:opacity-40"
+                  >
+                    <Expand className="h-4 w-4" aria-hidden="true" />
+                    Theater
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleShare}
+                    disabled={store.visibleStreams.length === 0}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm text-text hover:bg-surface-raised disabled:opacity-40"
+                  >
+                    <Share2 className="h-4 w-4" aria-hidden="true" />
+                    Share
+                  </button>
+                </div>
+              </div>
+            )}
 
             {store.visibleStreams.length === 0 ? (
               <EmptyState
@@ -269,6 +340,7 @@ function App() {
                 layout={store.settings.layout}
                 density={store.settings.density}
                 featuredStreamId={store.settings.featuredStreamId}
+                theater={theater}
                 onReorder={store.reorderStreams}
                 onRemove={handleRemoveRequest}
                 onHide={handleHide}
@@ -282,27 +354,43 @@ function App() {
             )}
           </main>
 
-          <Sidebar
-            open={store.settings.sidebarOpen}
-            side={store.settings.sidebarSide}
-            hiddenStreams={store.hiddenStreams}
-            favoriteStreams={favoriteStreams}
-            recents={store.recents}
-            onUnhide={handleUnhide}
-            onDelete={handleRemoveRequest}
-            onToggleFavorite={store.toggleFavorite}
-            onAddFromRecent={handleAddFromRecent}
-            onRemoveRecent={store.removeRecent}
-            onClearRecents={store.clearRecents}
-          />
+          {!theater && (
+            <Sidebar
+              open={store.settings.sidebarOpen}
+              side={store.settings.sidebarSide}
+              hiddenStreams={store.hiddenStreams}
+              favoriteStreams={favoriteStreams}
+              recents={store.recents}
+              onUnhide={handleUnhide}
+              onDelete={handleRemoveRequest}
+              onToggleFavorite={store.toggleFavorite}
+              onAddFromRecent={handleAddFromRecent}
+              onRemoveRecent={store.removeRecent}
+              onClearRecents={store.clearRecents}
+            />
+          )}
         </div>
 
-        <StatusBar
-          visibleCount={store.visibleStreams.length}
-          hiddenCount={store.hiddenStreams.length}
-          storageAvailable={store.storageAvailable}
-        />
+        {!theater && (
+          <StatusBar
+            visibleCount={store.visibleStreams.length}
+            hiddenCount={store.hiddenStreams.length}
+            storageAvailable={store.storageAvailable}
+          />
+        )}
       </div>
+
+      {theater && (
+        <button
+          type="button"
+          onClick={() => setTheater(false)}
+          aria-label="Exit theater mode"
+          title="Exit theater mode (Esc)"
+          className="fixed right-3 top-3 z-50 inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface-raised/80 text-text opacity-40 shadow-card backdrop-blur transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+        >
+          <Minimize2 className="h-4 w-4" aria-hidden="true" />
+        </button>
+      )}
 
       <AddStreamModal
         isOpen={addModalOpen}

@@ -13,7 +13,7 @@ import {
   sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable'
 import { LayoutMode, StreamEntry } from '@/types/stream'
-import { StreamCard } from './StreamCard'
+import { SafeStreamCard } from './CardBoundary'
 import { cx } from '@/utils/classNames'
 
 interface StreamGridProps {
@@ -21,6 +21,7 @@ interface StreamGridProps {
   layout: LayoutMode
   density: 'compact' | 'comfortable'
   featuredStreamId: string | null
+  theater?: boolean
   onReorder: (orderedIds: string[]) => void
   onRemove: (stream: StreamEntry) => void
   onHide: (id: string) => void
@@ -46,6 +47,7 @@ export function StreamGrid({
   layout,
   density,
   featuredStreamId,
+  theater = false,
   onReorder,
   onRemove,
   onHide,
@@ -93,16 +95,23 @@ export function StreamGrid({
     const rest = streams.filter((s) => s.id !== focused?.id)
     // On large screens the focused stream is exactly 16:9: as wide as the screen height allows,
     // but always leaving at least 19rem for the rail. The rail takes all remaining width.
-    const focusedWidth =
-      rest.length > 0
-        ? 'lg:w-[min(calc((100dvh_-_9.5rem)*16/9),calc(100%_-_19rem))]'
+    // Theater mode has no navbar/status bar, so the height budget is larger.
+    let focusedWidth: string
+    if (rest.length > 0) {
+      focusedWidth = theater
+        ? 'lg:w-[min(calc((100dvh_-_2.5rem)*16/9),calc(100%_-_19rem))]'
+        : 'lg:w-[min(calc((100dvh_-_9.5rem)*16/9),calc(100%_-_19rem))]'
+    } else {
+      focusedWidth = theater
+        ? 'lg:w-[min(calc((100dvh_-_2.5rem)*16/9),100%)]'
         : 'lg:w-[min(calc((100dvh_-_9.5rem)*16/9),100%)]'
+    }
     return (
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <div className="flex flex-col gap-3 lg:flex-row">
           {focused && (
             <div className={cx('aspect-video min-w-0 lg:shrink-0', focusedWidth)}>
-              <StreamCard {...cardProps(focused)} fill />
+              <SafeStreamCard {...cardProps(focused)} fill />
             </div>
           )}
           {rest.length > 0 && (
@@ -112,7 +121,7 @@ export function StreamGrid({
                   {rest.map((s) => (
                     <div key={s.id} className="w-64 shrink-0 lg:w-full">
                       {/* Only the focused stream may play audio: rail streams are always muted. */}
-                      <StreamCard {...cardProps({ ...s, isMuted: true })} onFocus={() => onSetFeatured(s.id)} />
+                      <SafeStreamCard {...cardProps({ ...s, isMuted: true })} onFocus={() => onSetFeatured(s.id)} />
                     </div>
                   ))}
                 </div>
@@ -132,7 +141,7 @@ export function StreamGrid({
         <div className="relative min-h-[60vh] rounded-2xl bg-black/10">
           {featured && (
             <div className="h-[70vh] max-h-[800px] w-full">
-              <StreamCard {...cardProps(featured)} />
+              <SafeStreamCard {...cardProps(featured)} />
             </div>
           )}
           {secondary.length > 0 && (
@@ -140,7 +149,7 @@ export function StreamGrid({
               <div className="mt-3 flex flex-wrap gap-3 sm:absolute sm:bottom-3 sm:right-3 sm:mt-0 sm:w-72">
                 {secondary.map((s) => (
                   <div key={s.id} className="w-full sm:w-64">
-                    <StreamCard {...cardProps(s)} />
+                    <SafeStreamCard {...cardProps(s)} />
                   </div>
                 ))}
               </div>
@@ -156,7 +165,7 @@ export function StreamGrid({
       <SortableContext items={streams.map((s) => s.id)} strategy={rectSortingStrategy}>
         <div className={cx(GRID_CLASSES[layout])}>
           {streams.map((s) => (
-            <StreamCard key={s.id} {...cardProps(s)} />
+            <SafeStreamCard key={s.id} {...cardProps(s)} />
           ))}
         </div>
       </SortableContext>
