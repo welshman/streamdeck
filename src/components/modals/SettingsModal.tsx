@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Download, Upload, Copy, Check, ShieldCheck, RefreshCw } from 'lucide-react'
 import { Modal } from '@/components/ui/Modal'
 import { DashboardSettings, Density } from '@/types/stream'
@@ -35,6 +35,17 @@ export function SettingsModal({
   const [importSuccess, setImportSuccess] = useState(false)
   const [copied, setCopied] = useState(false)
 
+  // This component stays mounted while the dialog is closed, so clear it out on close.
+  // Otherwise reopening it shows the old import text and old error/success messages.
+  useEffect(() => {
+    if (!isOpen) {
+      setImportText('')
+      setImportError(null)
+      setImportSuccess(false)
+      setCopied(false)
+    }
+  }, [isOpen])
+
   function handleExportDownload() {
     const json = onExport()
     const blob = new Blob([json], { type: 'application/json' })
@@ -48,12 +59,33 @@ export function SettingsModal({
 
   async function handleCopyToClipboard() {
     const json = onExport()
-    try {
-      await navigator.clipboard.writeText(json)
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 2000)
-    } catch {
-      /* clipboard API may be unavailable; user can still use the download button */
+    // navigator.clipboard only exists in secure contexts (https or localhost). On plain
+    // http (e.g. a LAN IP) fall back to the older execCommand approach so the button
+    // still works.
+    const fallback = () => {
+      const ta = document.createElement('textarea')
+      ta.value = json
+      ta.style.position = 'fixed'
+      ta.style.opacity = '0'
+      document.body.appendChild(ta)
+      ta.select()
+      const ok = document.execCommand('copy')
+      document.body.removeChild(ta)
+      if (ok) {
+        setCopied(true)
+        window.setTimeout(() => setCopied(false), 2000)
+      }
+    }
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(json)
+        setCopied(true)
+        window.setTimeout(() => setCopied(false), 2000)
+      } catch {
+        fallback()
+      }
+    } else {
+      fallback()
     }
   }
 
@@ -76,12 +108,16 @@ export function SettingsModal({
     reader.onload = () => {
       const text = String(reader.result ?? '')
       setImportError(null)
+      setImportSuccess(false)
       const result = onImport(text)
       if (!result.ok) {
         setImportError(result.error ?? 'Import failed.')
       } else {
         setImportSuccess(true)
       }
+    }
+    reader.onerror = () => {
+      setImportError('Could not read that file.')
     }
     reader.readAsText(file)
     e.target.value = ''
