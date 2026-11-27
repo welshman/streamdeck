@@ -10,6 +10,7 @@ const SHORTCUTS: { keys: string; description: string }[] = [
   { keys: 'Ctrl/Cmd + V', description: 'Paste a Twitch, Kick or YouTube link anywhere to add it' },
   { keys: 'S', description: 'Toggle the sidebar' },
   { keys: 'F', description: 'Toggle Single focus layout' },
+  { keys: 'D', description: 'Show or hide the docked chat (Single focus)' },
   { keys: 'Z', description: 'Theater mode: hide the bars so streams fill the window' },
   { keys: 'N / P', description: 'Focus the next / previous stream (moves the audio too)' },
   { keys: '1 – 9', description: 'Focus the stream in that position' },

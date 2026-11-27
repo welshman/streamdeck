@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Plus,
   LayoutGrid,
@@ -76,6 +76,31 @@ export function Navbar({
 }: NavbarProps) {
   const [layoutMenuOpen, setLayoutMenuOpen] = useState(false)
   const [themeMenuOpen, setThemeMenuOpen] = useState(false)
+  const layoutMenuRef = useRef<HTMLDivElement>(null)
+  const themeMenuRef = useRef<HTMLDivElement>(null)
+
+  // The menus used to close only when the mouse left them, which left them stuck open on
+  // touch screens. Now a click/tap outside, or Escape, also closes them.
+  useEffect(() => {
+    if (!layoutMenuOpen && !themeMenuOpen) return
+    function onPointerDown(e: PointerEvent) {
+      const target = e.target as Node
+      if (layoutMenuRef.current && !layoutMenuRef.current.contains(target)) setLayoutMenuOpen(false)
+      if (themeMenuRef.current && !themeMenuRef.current.contains(target)) setThemeMenuOpen(false)
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setLayoutMenuOpen(false)
+        setThemeMenuOpen(false)
+      }
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [layoutMenuOpen, themeMenuOpen])
 
   const SidebarIcon =
     sidebarSide === 'left'
@@ -121,7 +146,7 @@ export function Navbar({
           <span className="hidden sm:inline">Add stream</span>
         </button>
 
-        <div className="relative">
+        <div className="relative" ref={layoutMenuRef}>
           <IconButton
             label="Choose layout"
             active={layoutMenuOpen}
@@ -181,7 +206,7 @@ export function Navbar({
         </Tooltip>
 
         <div className="ml-auto flex items-center gap-1">
-          <div className="relative">
+          <div className="relative" ref={themeMenuRef}>
             <IconButton
               label="Change theme"
               active={themeMenuOpen}

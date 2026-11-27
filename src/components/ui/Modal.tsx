@@ -17,6 +17,9 @@ const SIZES: Record<string, string> = {
   lg: 'max-w-2xl',
 }
 
+const FOCUSABLE =
+  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+
 export function Modal({ title, isOpen, onClose, children, footer, size = 'md' }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
   // Always call the latest onClose without making it an effect dependency:
@@ -40,7 +43,34 @@ export function Modal({ title, isOpen, onClose, children, footer, size = 'md' }:
   useEffect(() => {
     if (!isOpen) return
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onCloseRef.current()
+      if (e.key === 'Escape') {
+        onCloseRef.current()
+        return
+      }
+      // Keep Tab / Shift+Tab inside the dialog so focus never lands on the page behind it.
+      if (e.key === 'Tab') {
+        const dialog = dialogRef.current
+        if (!dialog) return
+        const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE))
+        if (focusable.length === 0) {
+          e.preventDefault()
+          dialog.focus()
+          return
+        }
+        const first = focusable[0]
+        const last = focusable[focusable.length - 1]
+        const active = document.activeElement
+        if (!dialog.contains(active)) {
+          e.preventDefault()
+          first.focus()
+        } else if (e.shiftKey && (active === first || active === dialog)) {
+          e.preventDefault()
+          last.focus()
+        } else if (!e.shiftKey && active === last) {
+          e.preventDefault()
+          first.focus()
+        }
+      }
     }
     document.addEventListener('keydown', onKeyDown)
 
