@@ -227,6 +227,10 @@ export function useDashboardStore() {
     setSettings((prev) => ({ ...prev, hideOfflineStreams: value }))
   }, [])
 
+  // `orderedIds` is the desired order of the visible streams. We must
+  // assign each stream its new position explicitly: reorder() sorts by the
+  // existing `order` field, so passing a re-arranged array straight into it
+  // would just restore the old order (the "snaps back" bug).
   const reorderStreams = useCallback((orderedIds: string[]) => {
     setStreams((prev) => {
       const byId = new Map(prev.map((s) => [s.id, s]))
@@ -234,7 +238,7 @@ export function useDashboardStore() {
         .map((id) => byId.get(id))
         .filter((s): s is StreamEntry => Boolean(s))
       const untouched = prev.filter((s) => !orderedIds.includes(s.id))
-      return reorder([...reordered, ...untouched])
+      return [...reordered, ...untouched].map((s, idx) => ({ ...s, order: idx }))
     })
   }, [])
 
