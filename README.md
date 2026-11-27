@@ -15,7 +15,9 @@ Demo: https://welshman.github.io/streamdeck/
 - Add streams by pasting a full URL or a bare channel name (Twitch/Kick) or video ID (YouTube).
 - Paste multiple URLs at once to add several streams in one step.
 - **Paste anywhere:** paste a Twitch, Kick or YouTube link anywhere on the page (outside text fields and dialogs) and it is added straight away.
+- **Ctrl/Cmd + Enter** in the Add a stream box submits it.
 - Automatic platform detection with clear, specific error messages for unsupported or ambiguous input (e.g. a bare word that could be a Twitch or Kick channel name is flagged rather than silently guessed).
+- When adding several lines and some fail, only the failed lines stay in the box, so fixing and re-adding doesn't retry the ones that already worked.
 
 ### Layouts and viewing
 
@@ -33,17 +35,20 @@ Demo: https://welshman.github.io/streamdeck/
 ### Organising
 
 - **Scenes:** save your current streams, layout and focused stream under a name and load it later from the sidebar's Scenes tab. Loading a scene reuses streams you already have (keeping favourites and renames) and moves anything not in the scene to Hidden — nothing is deleted. Up to 20 scenes.
-- Hide streams without deleting them; unhide or permanently delete from the sidebar.
-- Sidebar tabs for hidden streams, favorites (un-star right from the sidebar), recently used streams (re-add, remove one, or clear all) and scenes. The sidebar can sit on the left or right, and the toggle button follows it. On small screens it slides over the streams.
+- Hide streams without deleting them; unhide one, **unhide all**, or permanently delete from the sidebar.
+- Sidebar tabs for hidden streams, favorites (un-star right from the sidebar), recently used streams (re-add, remove one, or clear all) and scenes. The sidebar can sit on the left or right, and the toggle button follows it. On small screens it slides over the streams; tapping outside it closes it.
 - **Undo:** removing or hiding a stream shows an Undo button for a few seconds.
-- Import/export your whole configuration (including scenes) as JSON, or generate a shareable URL that encodes your stream list in the hash — no backend required.
+- Import/export your whole configuration (including scenes) as JSON, or generate a shareable URL that encodes your stream list in the hash — no backend required. Malformed shared links are rejected rather than crashing the app.
 
 ### Stability
 
 - A stalled player is reloaded once automatically before a "taking a while to load" message with a reload button is shown. **Reload all players** is available in Settings.
 - Each stream card is isolated: if one player crashes it shows a retry box and the rest of the dashboard keeps running.
-- An offline banner appears when the browser loses its connection.
+- An offline banner appears when the browser loses its connection; when the connection returns, every player is reloaded once automatically.
 - Safety nets: a confirmation before removing a stream or all streams, an error toast if saving fails, and a backup copy of saved data that can't be read before starting fresh.
+- If StreamDeck is open in two tabs, the other tab shows a warning with a Reload button when this tab saves changes, so the last save doesn't silently overwrite the other tab's work.
+- Dialogs trap keyboard focus (Tab/Shift+Tab stay inside), and the layout/theme menus close on outside click/tap or Escape.
+- Toast notifications are capped at 3 visible at once, so rapid actions don't pile up a tall stack.
 - Respects `prefers-reduced-motion` and is built with accessible, labeled controls throughout.
 
 ### Keyboard shortcuts
@@ -54,6 +59,7 @@ Demo: https://welshman.github.io/streamdeck/
 | `Ctrl/Cmd + V` | Paste a stream link anywhere to add it |
 | `S` | Toggle the sidebar |
 | `F` | Toggle Single focus layout |
+| `D` | Show or hide the docked chat (Single focus) |
 | `Z` | Theater mode |
 | `N` / `P` | Focus the next / previous stream (audio follows) |
 | `1`–`9` | Focus the stream in that position |
