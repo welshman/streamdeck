@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { ExternalLink } from 'lucide-react'
 import { StreamEntry } from '@/types/stream'
 import {
@@ -12,22 +13,41 @@ interface ChatPanelProps {
   className?: string
 }
 
+/** True while the app's dark theme is active. The theme hook toggles a
+ * `dark` class on <html>, so we watch that class and re-render when it
+ * changes (this also covers the "match system" setting). */
+function useIsDark(): boolean {
+  const [dark, setDark] = useState(() => document.documentElement.classList.contains('dark'))
+  useEffect(() => {
+    const root = document.documentElement
+    const update = () => setDark(root.classList.contains('dark'))
+    update()
+    const observer = new MutationObserver(update)
+    observer.observe(root, { attributes: true, attributeFilter: ['class'] })
+    return () => observer.disconnect()
+  }, [])
+  return dark
+}
+
 /** Renders an embedded chat iframe when the platform supports it.
- * Twitch has a documented public chat embed. Kick's popout chat URL is
- * attempted in an iframe (it works in OBS browser docks) with a visible
- * fallback link in case Kick blocks third-party framing. Other platforms
- * show a fallback button that opens the native chat/stream in a new tab.
+ * Twitch has a documented public chat embed (dark or light to match the
+ * app theme). Kick's popout chat URL is attempted in an iframe (it works in
+ * OBS browser docks) with a visible fallback link in case Kick blocks
+ * third-party framing. Other platforms show a fallback button that opens
+ * the native chat/stream in a new tab.
  *
  * The caller's className controls size and positioning of the outer box
  * (e.g. `absolute inset-0` in the docked column), so any extra positioning
  * context needed for overlays lives on an inner wrapper. */
 export function ChatPanel({ stream, className }: ChatPanelProps) {
+  const dark = useIsDark()
+
   if (stream.platform === 'twitch' && chatSupported('twitch')) {
     return (
       <div className={className}>
         <iframe
           title={`Twitch chat: ${stream.channelOrId}`}
-          src={buildTwitchChatUrl(stream.channelOrId)}
+          src={buildTwitchChatUrl(stream.channelOrId, undefined, dark)}
           className="h-full w-full rounded-lg border-0 bg-surface-sunken"
           loading="lazy"
         />

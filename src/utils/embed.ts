@@ -64,9 +64,14 @@ export function buildYouTubeEmbedUrl({
   return `https://www.youtube.com/embed/${encodeURIComponent(videoId)}?${params.toString()}`
 }
 
-export function buildTwitchChatUrl(channel: string, parent?: string): string {
+/** Twitch chat embed URL. Twitch's embedded chat is light by default; the
+ * `darkpopout` flag (a bare parameter with no value) switches it to dark.
+ * It is not part of Twitch's official docs, so the chat simply falls back
+ * to light if Twitch ever stops honouring it. */
+export function buildTwitchChatUrl(channel: string, parent?: string, dark = false): string {
   const params = new URLSearchParams({ parent: parent ?? getTwitchParentHost() })
-  return `https://www.twitch.tv/embed/${encodeURIComponent(channel)}/chat?${params.toString()}`
+  const base = `https://www.twitch.tv/embed/${encodeURIComponent(channel)}/chat?${params.toString()}`
+  return dark ? `${base}&darkpopout` : base
 }
 
 /** Kick's chat-only popout page. Kick documents this URL for OBS browser
