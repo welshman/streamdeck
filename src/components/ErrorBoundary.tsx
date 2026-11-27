@@ -1,5 +1,5 @@
 import { Component, ErrorInfo, ReactNode } from 'react'
-import { AlertOctagon } from 'lucide-react'
+import { AlertOctagon, Trash2 } from 'lucide-react'
 
 interface ErrorBoundaryProps {
   children: ReactNode
@@ -30,13 +30,34 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             StreamDeck ran into an unexpected error. Your saved streams are safe in localStorage.
             Try reloading the page.
           </p>
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-hover"
-          >
-            Reload StreamDeck
-          </button>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-hover"
+            >
+              Reload StreamDeck
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                // Last-resort escape hatch: if a crash is caused by corrupted saved
+                // data, reloading alone won't help. This clears the saved state so the
+                // app can start fresh (the corrupt-data backup copy is kept by
+                // storage.ts, so nothing is truly unrecoverable).
+                try {
+                  window.localStorage.removeItem('streamdeck:state:v1')
+                } catch {
+                  /* ignore */
+                }
+                window.location.reload()
+              }}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/40 px-4 py-2 text-sm font-medium text-red-400 hover:bg-red-500/10"
+            >
+              <Trash2 className="h-4 w-4" aria-hidden="true" />
+              Clear saved data and start fresh
+            </button>
+          </div>
         </div>
       )
     }
