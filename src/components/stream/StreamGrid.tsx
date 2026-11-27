@@ -91,23 +91,31 @@ export function StreamGrid({
   if (layout === 'focus') {
     const focused = streams.find((s) => s.id === featuredStreamId) ?? streams[0]
     const rest = streams.filter((s) => s.id !== focused?.id)
+    // On large screens the focused stream is exactly 16:9: as wide as the screen height allows,
+    // but always leaving at least 19rem for the rail. The rail takes all remaining width.
+    const focusedWidth =
+      rest.length > 0
+        ? 'lg:w-[min(calc((100dvh_-_9.5rem)*16/9),calc(100%_-_19rem))]'
+        : 'lg:w-[min(calc((100dvh_-_9.5rem)*16/9),100%)]'
     return (
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <div className="flex flex-col gap-3 lg:h-[calc(100dvh-9.5rem)] lg:min-h-[420px] lg:flex-row">
+        <div className="flex flex-col gap-3 lg:flex-row">
           {focused && (
-            <div className="aspect-video min-h-0 min-w-0 lg:aspect-auto lg:flex-1">
+            <div className={cx('aspect-video min-w-0 lg:shrink-0', focusedWidth)}>
               <StreamCard {...cardProps(focused)} fill />
             </div>
           )}
           {rest.length > 0 && (
             <SortableContext items={rest.map((s) => s.id)} strategy={rectSortingStrategy}>
-              <div className="flex shrink-0 gap-3 overflow-x-auto pb-1 lg:w-72 lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden lg:pb-0 xl:w-80">
-                {rest.map((s) => (
-                  <div key={s.id} className="w-64 shrink-0 lg:w-full">
-                    {/* Only the focused stream may play audio: rail streams are always muted. */}
-                    <StreamCard {...cardProps({ ...s, isMuted: true })} onFocus={() => onSetFeatured(s.id)} />
-                  </div>
-                ))}
+              <div className="min-w-0 lg:relative lg:min-h-[240px] lg:flex-1">
+                <div className="flex gap-3 overflow-x-auto pb-1 lg:absolute lg:inset-0 lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden lg:pb-0">
+                  {rest.map((s) => (
+                    <div key={s.id} className="w-64 shrink-0 lg:w-full">
+                      {/* Only the focused stream may play audio: rail streams are always muted. */}
+                      <StreamCard {...cardProps({ ...s, isMuted: true })} onFocus={() => onSetFeatured(s.id)} />
+                    </div>
+                  ))}
+                </div>
               </div>
             </SortableContext>
           )}
