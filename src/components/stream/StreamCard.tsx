@@ -16,6 +16,7 @@ import {
   PinOff,
   ChevronsLeft,
   ChevronsRight,
+  Focus,
 } from 'lucide-react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -32,6 +33,8 @@ interface StreamCardProps {
   stream: StreamEntry
   isFeatured: boolean
   density: 'compact' | 'comfortable'
+  fill?: boolean
+  onFocus?: () => void
   onRemove: (stream: StreamEntry) => void
   onHide: (id: string) => void
   onSetFeatured: (id: string | null) => void
@@ -46,6 +49,8 @@ export function StreamCard({
   stream,
   isFeatured,
   density,
+  fill = false,
+  onFocus,
   onRemove,
   onHide,
   onSetFeatured,
@@ -108,6 +113,7 @@ export function StreamCard({
       style={style}
       className={cx(
         'group relative flex flex-col overflow-hidden rounded-xl border bg-surface-raised shadow-card transition-shadow',
+        fill && 'h-full',
         isFeatured ? 'border-accent/50 ring-1 ring-accent/30' : 'border-border',
         stream.accentColor && 'border-l-4',
       )}
@@ -117,7 +123,12 @@ export function StreamCard({
         ref={containerRef}
         className={cx('flex min-h-0 flex-1', showChatPanel ? 'flex-col sm:flex-row' : 'flex-col')}
       >
-        <div className={cx('relative flex-1', isCompact ? 'aspect-[16/10]' : 'aspect-video')}>
+        <div
+          className={cx(
+            'relative flex-1',
+            fill ? 'min-h-0 basis-0' : isCompact ? 'aspect-[16/10]' : 'aspect-video',
+          )}
+        >
           <StreamPlayer key={reloadKey} stream={stream} />
         </div>
         {showChatPanel && (
@@ -128,7 +139,7 @@ export function StreamCard({
         )}
       </div>
 
-      <div className={cx('flex items-center gap-1.5 border-t border-border px-2', isCompact ? 'py-1' : 'py-1.5')}>
+      <div className={cx('flex shrink-0 items-center gap-1.5 border-t border-border px-2', isCompact ? 'py-1' : 'py-1.5')}>
         <button
           type="button"
           {...attributes}
@@ -166,6 +177,14 @@ export function StreamCard({
           >
             {stream.label}
           </button>
+        )}
+
+        {onFocus && (
+          <Tooltip content="Focus this stream">
+            <IconButton label={`Focus ${stream.label}`} onClick={onFocus} className="shrink-0">
+              <Focus className="h-4 w-4" aria-hidden="true" />
+            </IconButton>
+          </Tooltip>
         )}
 
         {/* Collapsing hides everything below except the essential controls,
