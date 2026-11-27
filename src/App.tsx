@@ -37,10 +37,23 @@ function App() {
   const [online, setOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine))
 
   const activeCount = store.visibleStreams.length
+  const focusedLabel = store.visibleStreams.find((s) => s.id === store.settings.featuredStreamId)?.label
 
   useEffect(() => {
-    document.title = activeCount > 0 ? `StreamDeck (${activeCount})` : 'StreamDeck'
-  }, [activeCount])
+    if (activeCount === 0) {
+      document.title = 'StreamDeck'
+    } else if (focusedLabel) {
+      document.title = `${focusedLabel} · StreamDeck (${activeCount})`
+    } else {
+      document.title = `StreamDeck (${activeCount})`
+    }
+  }, [activeCount, focusedLabel])
+
+  // On small screens the sidebar slides over the streams, so start with it closed.
+  const { setSidebarOpen } = store
+  useEffect(() => {
+    if (window.matchMedia('(max-width: 1023px)').matches) setSidebarOpen(false)
+  }, [setSidebarOpen])
 
   useEffect(() => {
     const goOnline = () => setOnline(true)
@@ -123,8 +136,12 @@ function App() {
 
   const confirmDelete = useCallback(() => {
     if (pendingDelete) {
-      store.removeStream(pendingDelete.id)
-      store.pushToast(`Removed ${pendingDelete.label}.`, 'info')
+      const removed = pendingDelete
+      store.removeStream(removed.id)
+      store.pushToast(`Removed ${removed.label}.`, 'info', {
+        label: 'Undo',
+        onClick: () => store.restoreStream(removed),
+      })
       setPendingDelete(null)
     }
   }, [pendingDelete, store])
@@ -140,7 +157,12 @@ function App() {
     (id: string) => {
       const stream = store.streams.find((s) => s.id === id)
       store.hideStream(id)
-      if (stream) store.pushToast(`Hid ${stream.label}. You can unhide it from the sidebar.`, 'info')
+      if (stream) {
+        store.pushToast(`Hid ${stream.label}. You can unhide it from the sidebar.`, 'info', {
+          label: 'Undo',
+          onClick: () => store.unhideStream(id),
+        })
+      }
     },
     [store],
   )
