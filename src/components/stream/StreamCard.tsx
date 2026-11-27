@@ -36,6 +36,8 @@ interface StreamCardProps {
   isFeatured: boolean
   density: 'compact' | 'comfortable'
   fill?: boolean
+  /** Bumped by "Reload all players" to remount every player. */
+  reloadSignal?: number
   onFocus?: () => void
   onRemove: (stream: StreamEntry) => void
   onHide: (id: string) => void
@@ -52,6 +54,7 @@ export function StreamCard({
   isFeatured,
   density,
   fill = false,
+  reloadSignal = 0,
   onFocus,
   onRemove,
   onHide,
@@ -142,7 +145,7 @@ export function StreamCard({
             fill ? 'min-h-0 basis-0' : isCompact ? 'aspect-[16/10]' : 'aspect-video',
           )}
         >
-          <StreamPlayer key={reloadKey} stream={stream} />
+          <StreamPlayer key={`${reloadKey}-${reloadSignal}`} stream={stream} />
         </div>
         {showChatPanel && (
           <ChatPanel

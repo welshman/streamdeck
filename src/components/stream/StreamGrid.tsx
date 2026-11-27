@@ -14,6 +14,7 @@ import {
 } from '@dnd-kit/sortable'
 import { LayoutMode, StreamEntry } from '@/types/stream'
 import { SafeStreamCard } from './CardBoundary'
+import { ChatPanel } from '@/components/players/ChatPanel'
 import { cx } from '@/utils/classNames'
 
 interface StreamGridProps {
@@ -22,6 +23,8 @@ interface StreamGridProps {
   density: 'compact' | 'comfortable'
   featuredStreamId: string | null
   theater?: boolean
+  dockChat?: boolean
+  reloadSignal?: number
   onReorder: (orderedIds: string[]) => void
   onRemove: (stream: StreamEntry) => void
   onHide: (id: string) => void
@@ -42,12 +45,33 @@ const GRID_CLASSES: Record<LayoutMode, string> = {
   focus: '',
 }
 
+// On large screens the focused stream is exactly 16:9: as wide as the screen height allows, but
+// always leaving room for the rail (19rem) and/or the docked chat column (21rem incl. gap).
+// Class names must be written out in full so Tailwind can see them. Theater mode has no
+// navbar/status bar, so it gets a larger height budget.
+const FOCUS_WIDTH = {
+  normal: {
+    both: 'lg:w-[min(calc((100dvh_-_9.5rem)*16/9),calc(100%_-_40rem))]',
+    rail: 'lg:w-[min(calc((100dvh_-_9.5rem)*16/9),calc(100%_-_19rem))]',
+    chat: 'lg:w-[min(calc((100dvh_-_9.5rem)*16/9),calc(100%_-_21rem))]',
+    none: 'lg:w-[min(calc((100dvh_-_9.5rem)*16/9),100%)]',
+  },
+  theater: {
+    both: 'lg:w-[min(calc((100dvh_-_2.5rem)*16/9),calc(100%_-_40rem))]',
+    rail: 'lg:w-[min(calc((100dvh_-_2.5rem)*16/9),calc(100%_-_19rem))]',
+    chat: 'lg:w-[min(calc((100dvh_-_2.5rem)*16/9),calc(100%_-_21rem))]',
+    none: 'lg:w-[min(calc((100dvh_-_2.5rem)*16/9),100%)]',
+  },
+} as const
+
 export function StreamGrid({
   streams,
   layout,
   density,
   featuredStreamId,
   theater = false,
+  dockChat = false,
+  reloadSignal = 0,
   onReorder,
   onRemove,
   onHide,
@@ -80,6 +104,7 @@ export function StreamGrid({
     stream,
     isFeatured: stream.id === featuredStreamId,
     density,
+    reloadSignal,
     onRemove,
     onHide,
     onSetFeatured,
@@ -93,19 +118,10 @@ export function StreamGrid({
   if (layout === 'focus') {
     const focused = streams.find((s) => s.id === featuredStreamId) ?? streams[0]
     const rest = streams.filter((s) => s.id !== focused?.id)
-    // On large screens the focused stream is exactly 16:9: as wide as the screen height allows,
-    // but always leaving at least 19rem for the rail. The rail takes all remaining width.
-    // Theater mode has no navbar/status bar, so the height budget is larger.
-    let focusedWidth: string
-    if (rest.length > 0) {
-      focusedWidth = theater
-        ? 'lg:w-[min(calc((100dvh_-_2.5rem)*16/9),calc(100%_-_19rem))]'
-        : 'lg:w-[min(calc((100dvh_-_9.5rem)*16/9),calc(100%_-_19rem))]'
-    } else {
-      focusedWidth = theater
-        ? 'lg:w-[min(calc((100dvh_-_2.5rem)*16/9),100%)]'
-        : 'lg:w-[min(calc((100dvh_-_9.5rem)*16/9),100%)]'
-    }
+    const showDockedChat = dockChat && focused !== undefined
+    const hasRail = rest.length > 0
+    const widthKey = hasRail ? (showDockedChat ? 'both' : 'rail') : showDockedChat ? 'chat' : 'none'
+    const focusedWidth = FOCUS_WIDTH[theater ? 'theater' : 'normal'][widthKey]
     return (
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <div className="flex flex-col gap-3 lg:flex-row">
@@ -114,7 +130,12 @@ export function StreamGrid({
               <SafeStreamCard {...cardProps(focused)} fill />
             </div>
           )}
-          {rest.length > 0 && (
+          {showDockedChat && focused && (
+            <div className="relative hidden overflow-hidden rounded-xl border border-border bg-surface-raised lg:block lg:w-80 lg:shrink-0">
+              <ChatPanel stream={focused} className="absolute inset-0" />
+            </div>
+          )}
+          {hasRail && (
             <SortableContext items={rest.map((s) => s.id)} strategy={rectSortingStrategy}>
               <div className="min-w-0 lg:relative lg:min-h-[240px] lg:flex-1">
                 <div className="flex gap-3 overflow-x-auto pb-1 lg:absolute lg:inset-0 lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden lg:pb-0">

@@ -18,7 +18,7 @@ import { encodeShareLink } from '@/utils/shareLink'
 import { StreamEntry, Platform, RecentStream, Scene } from '@/types/stream'
 import { originalStreamUrl } from '@/utils/embed'
 import { cx } from '@/utils/classNames'
-import { Share2, Plus, Expand, Minimize2, WifiOff } from 'lucide-react'
+import { Share2, Plus, Expand, Minimize2, WifiOff, MessageSquare } from 'lucide-react'
 
 const STREAM_LINK_PATTERN = /^(https?:\/\/)?(www\.|m\.)?(twitch\.tv|kick\.com|youtube\.com|youtu\.be)\//i
 
@@ -34,6 +34,7 @@ function App() {
   const [pendingDelete, setPendingDelete] = useState<StreamEntry | null>(null)
   const [confirmClearAll, setConfirmClearAll] = useState(false)
   const [theater, setTheater] = useState(false)
+  const [reloadSignal, setReloadSignal] = useState(0)
   const [online, setOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine))
 
   const activeCount = store.visibleStreams.length
@@ -205,6 +206,11 @@ function App() {
     [store],
   )
 
+  const handleReloadAll = useCallback(() => {
+    setReloadSignal((n) => n + 1)
+    store.pushToast('Reloading all players.', 'info')
+  }, [store])
+
   const handleMuteAll = useCallback(() => {
     const anyUnmuted = store.visibleStreams.some((s) => !s.isMuted)
     store.setMuteAll(anyUnmuted, store.settings.featuredStreamId ?? undefined)
@@ -348,6 +354,21 @@ function App() {
                     : `Viewing ${store.visibleStreams.length} stream${store.visibleStreams.length === 1 ? '' : 's'}`}
                 </h1>
                 <div className="flex gap-2">
+                  {store.settings.layout === 'focus' && (
+                    <button
+                      type="button"
+                      onClick={() => store.setDockChat(!store.settings.dockChat)}
+                      aria-pressed={store.settings.dockChat}
+                      disabled={store.visibleStreams.length === 0}
+                      className={cx(
+                        'hidden items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm hover:bg-surface-raised disabled:opacity-40 lg:inline-flex',
+                        store.settings.dockChat ? 'border-accent bg-accent/10 text-accent' : 'border-border text-text',
+                      )}
+                    >
+                      <MessageSquare className="h-4 w-4" aria-hidden="true" />
+                      Chat
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => setTheater(true)}
@@ -392,6 +413,8 @@ function App() {
                 density={store.settings.density}
                 featuredStreamId={store.settings.featuredStreamId}
                 theater={theater}
+                dockChat={store.settings.dockChat}
+                reloadSignal={reloadSignal}
                 onReorder={store.reorderStreams}
                 onRemove={handleRemoveRequest}
                 onHide={handleHide}
@@ -462,6 +485,8 @@ function App() {
         settings={store.settings}
         onSetDensity={store.setDensity}
         onSetSidebarSide={handleSetSidebarSide}
+        onSetNewStreamsCollapsed={store.setNewStreamsCollapsed}
+        onReloadAll={handleReloadAll}
         onExport={store.exportConfig}
         onImport={handleImport}
         onResetLayout={store.resetLayout}
