@@ -488,6 +488,7 @@ function App() {
             visibleCount={store.visibleStreams.length}
             hiddenCount={store.hiddenStreams.length}
             storageAvailable={store.storageAvailable}
+            online={online}
           />
         )}
       </div>
