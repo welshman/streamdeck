@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Copy, Check, Link2 } from 'lucide-react'
 import { Modal } from '@/components/ui/Modal'
 
@@ -11,13 +11,40 @@ interface ShareLinkModalProps {
 export function ShareLinkModal({ isOpen, onClose, link }: ShareLinkModalProps) {
   const [copied, setCopied] = useState(false)
 
+  // This component stays mounted while the dialog is closed, so clear it out on close.
+  // Otherwise reopening it shows the old copied state.
+  useEffect(() => {
+    if (!isOpen) setCopied(false)
+  }, [isOpen])
+
   async function handleCopy() {
-    try {
-      await navigator.clipboard.writeText(link)
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 2000)
-    } catch {
-      /* clipboard API unavailable; user can still select and copy manually */
+    // navigator.clipboard only exists in secure contexts (https or localhost). On plain
+    // http (e.g. a LAN IP) fall back to the older execCommand approach so the button
+    // still works.
+    const fallback = () => {
+      const ta = document.createElement('textarea')
+      ta.value = link
+      ta.style.position = 'fixed'
+      ta.style.opacity = '0'
+      document.body.appendChild(ta)
+      ta.select()
+      const ok = document.execCommand('copy')
+      document.body.removeChild(ta)
+      if (ok) {
+        setCopied(true)
+        window.setTimeout(() => setCopied(false), 2000)
+      }
+    }
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(link)
+        setCopied(true)
+        window.setTimeout(() => setCopied(false), 2000)
+      } catch {
+        fallback()
+      }
+    } else {
+      fallback()
     }
   }
 
