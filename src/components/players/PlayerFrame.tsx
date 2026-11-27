@@ -83,8 +83,13 @@ export function PlayerFrame({ title, src, allow }: PlayerFrameProps) {
         allow={allow ?? 'autoplay; fullscreen; picture-in-picture; encrypted-media'}
         allowFullScreen
         onLoad={() => {
+          // The iframe's onLoad fires as soon as the document starts loading, not when
+          // the video is actually playing. Keeping the skeleton up for a short grace
+          // period after that avoids a flash of "loaded" before the player is visible.
           loaded.current = true
-          setStatus('loaded')
+          window.setTimeout(() => {
+            if (loaded.current) setStatus('loaded')
+          }, 1500)
         }}
       />
     </div>
